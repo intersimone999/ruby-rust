@@ -1,6 +1,8 @@
 require 'code-assertions'
 
-Rust._eval("library(effsize)")
+Rust.exclusive do
+    Rust._eval("library(effsize)")
+end
 
 module Rust::EffectSize
     class Result

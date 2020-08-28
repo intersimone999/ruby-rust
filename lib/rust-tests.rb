@@ -60,7 +60,7 @@ module Rust::StatisticalTests::Wilcoxon
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
-            R.exclusive do
+            Rust.exclusive do
                 Rust::R_ENGINE.a = d1
                 Rust::R_ENGINE.b = d2
                 
@@ -85,7 +85,7 @@ module Rust::StatisticalTests::T
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             raise "The two distributions have different size" if d1.size != d2.size
             
-            R.exclusive do
+            Rust.exclusive do
                 Rust::R_ENGINE.a = d1
                 Rust::R_ENGINE.b = d2
                 
@@ -105,7 +105,7 @@ module Rust::StatisticalTests::T
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
-            R.exclusive do
+            Rust.exclusive do
                 Rust::R_ENGINE.a = d1
                 Rust::R_ENGINE.b = d2
                 
