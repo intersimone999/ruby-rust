@@ -25,7 +25,10 @@ module Rust::StatisticalTests
         end
         
         def to_s
-            return "#{name}. P-value = #{pvalue} (#{significant ? "significant" : "not significant"} w/ alpha = #{alpha}); #{ statistics.map { |k, v| k.to_s + " -> " + v.to_s  }.join(", ") }.#{ !exact ? " NOT EXACT" : "" }"
+            return "#{name}. P-value = #{pvalue} " +
+                    "(#{significant ? "significant" : "not significant"} w/ alpha = #{alpha}); " + 
+                    "#{ statistics.map { |k, v| k.to_s + " -> " + v.to_s  }.join(", ") }." +
+                    (!exact ? " P-value is not exact." : "")
         end
     end
 end
@@ -35,8 +38,8 @@ module Rust::StatisticalTests::Wilcoxon
         def paired(d1, d2, alpha = 0.05)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
-            
             raise "The two distributions have different size" if d1.size != d2.size
+            
             Rust.exclusive do
                 Rust::R_ENGINE.a = d1
                 Rust::R_ENGINE.b = d2
@@ -57,18 +60,20 @@ module Rust::StatisticalTests::Wilcoxon
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
-            Rust::R_ENGINE.a = d1
-            Rust::R_ENGINE.b = d2
-            
-            _, warnings = Rust._eval("result = wilcox.test(a, b, alternative='two.sided', paired=F)", true)
-            result = Rust::StatisticalTests::Result.new
-            result.name      = "Mann–Whitney U test, Wilcoxon Ranked-Sum test"
-            result.pvalue    = Rust._pull("result$p.value")
-            result[:w]       = Rust._pull("result$statistic")
-            result.exact     = !warnings.include?("cannot compute exact p-value with ties")
-            result.alpha     = alpha
-            
-            return result
+            R.exclusive do
+                Rust::R_ENGINE.a = d1
+                Rust::R_ENGINE.b = d2
+                
+                _, warnings = Rust._eval("result = wilcox.test(a, b, alternative='two.sided', paired=F)", true)
+                result = Rust::StatisticalTests::Result.new
+                result.name      = "Mann–Whitney U test, Wilcoxon Ranked-Sum test"
+                result.pvalue    = Rust._pull("result$p.value")
+                result[:w]       = Rust._pull("result$statistic")
+                result.exact     = !warnings.include?("cannot compute exact p-value with ties")
+                result.alpha     = alpha
+                
+                return result
+            end
         end
     end
 end
@@ -78,38 +83,42 @@ module Rust::StatisticalTests::T
         def paired(d1, d2, alpha = 0.05)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
-            
             raise "The two distributions have different size" if d1.size != d2.size
-            Rust::R_ENGINE.a = d1
-            Rust::R_ENGINE.b = d2
             
-            _, warnings = Rust._eval("result = t.test(a, b, alternative='two.sided', paired=T)", true)
-            result = Rust::StatisticalTests::Result.new
-            result.name      = "Paired t-test"
-            result.pvalue    = Rust._pull("result$p.value")
-            result[:t]       = Rust._pull("result$statistic")
-            result.exact     = !warnings.include?("cannot compute exact p-value with zeroes")
-            result.alpha     = alpha
-            
-            return result
+            R.exclusive do
+                Rust::R_ENGINE.a = d1
+                Rust::R_ENGINE.b = d2
+                
+                warnings = Rust._eval("result = t.test(a, b, alternative='two.sided', paired=T)")
+                result = Rust::StatisticalTests::Result.new
+                result.name      = "Paired t-test"
+                result.pvalue    = Rust._pull("result$p.value")
+                result[:t]       = Rust._pull("result$statistic")
+                result.exact     = true
+                result.alpha     = alpha
+                
+                return result
+            end
         end
         
         def unpaired(d1, d2, alpha = 0.05)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
-            Rust::R_ENGINE.a = d1
-            Rust::R_ENGINE.b = d2
-            
-            _, warnings = Rust._eval("result = t.test(a, b, alternative='two.sided', paired=F)", true)
-            result = Rust::StatisticalTests::Result.new
-            result.name      = "Welch Two Sample t-test"
-            result.pvalue    = Rust._pull("result$p.value")
-            result[:t]       = Rust._pull("result$statistic")
-            result.exact     = !warnings.include?("cannot compute exact p-value with ties")
-            result.alpha     = alpha
-            
-            return result
+            R.exclusive do
+                Rust::R_ENGINE.a = d1
+                Rust::R_ENGINE.b = d2
+                
+                Rust._eval("result = t.test(a, b, alternative='two.sided', paired=F)")
+                result = Rust::StatisticalTests::Result.new
+                result.name      = "Welch Two Sample t-test"
+                result.pvalue    = Rust._pull("result$p.value")
+                result[:t]       = Rust._pull("result$statistic")
+                result.exact     = true
+                result.alpha     = alpha
+                
+                return result
+            end
         end
     end
 end
