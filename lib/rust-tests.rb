@@ -66,7 +66,7 @@ module Rust::StatisticalTests::Wilcoxon
                 
                 _, warnings = Rust._eval("result = wilcox.test(a, b, alternative='two.sided', paired=F)", true)
                 result = Rust::StatisticalTests::Result.new
-                result.name      = "Mann–Whitney U test, Wilcoxon Ranked-Sum test"
+                result.name      = "Wilcoxon Ranked-Sum test (a.k.a. Mann–Whitney U test)"
                 result.pvalue    = Rust._pull("result$p.value")
                 result[:w]       = Rust._pull("result$statistic")
                 result.exact     = !warnings.include?("cannot compute exact p-value with ties")
