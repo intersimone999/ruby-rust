@@ -41,14 +41,14 @@ module Rust::StatisticalTests::Wilcoxon
             raise "The two distributions have different size" if d1.size != d2.size
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust["wilcox.a"] = d1
+                Rust["wilcox.b"] = d2
                 
-                _, warnings = Rust._eval("result = wilcox.test(a, b, alternative='two.sided', paired=T)", true)
+                _, warnings = Rust._eval("wilcox.result = wilcox.test(wilcox.a, wilcox.b, alternative='two.sided', paired=T)", true)
                 result = Rust::StatisticalTests::Result.new
                 result.name      = "Wilcoxon Signed-Rank test"
-                result.pvalue    = Rust._pull("result$p.value")
-                result[:w]       = Rust._pull("result$statistic")
+                result.pvalue    = Rust._pull("wilcox.result$p.value")
+                result[:w]       = Rust._pull("wilcox.result$statistic")
                 result.exact     = !warnings.include?("cannot compute exact p-value with zeroes")
                 result.alpha     = alpha
             
@@ -61,14 +61,14 @@ module Rust::StatisticalTests::Wilcoxon
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust["wilcox.a"] = d1
+                Rust["wilcox.b"] = d2
                 
-                _, warnings = Rust._eval("result = wilcox.test(a, b, alternative='two.sided', paired=F)", true)
+                _, warnings = Rust._eval("wilcox.result = wilcox.test(wilcox.a, wilcox.b, alternative='two.sided', paired=F)", true)
                 result = Rust::StatisticalTests::Result.new
                 result.name      = "Wilcoxon Ranked-Sum test (a.k.a. Mann–Whitney U test)"
-                result.pvalue    = Rust._pull("result$p.value")
-                result[:w]       = Rust._pull("result$statistic")
+                result.pvalue    = Rust._pull("wilcox.result$p.value")
+                result[:w]       = Rust._pull("wilcox.result$statistic")
                 result.exact     = !warnings.include?("cannot compute exact p-value with ties")
                 result.alpha     = alpha
                 
@@ -86,14 +86,14 @@ module Rust::StatisticalTests::T
             raise "The two distributions have different size" if d1.size != d2.size
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust["t.a"] = d1
+                Rust["t.b"] = d2
                 
-                warnings = Rust._eval("result = t.test(a, b, alternative='two.sided', paired=T)")
+                warnings = Rust._eval("t.result = t.test(t.a, t.b, alternative='two.sided', paired=T)")
                 result = Rust::StatisticalTests::Result.new
                 result.name      = "Paired t-test"
-                result.pvalue    = Rust._pull("result$p.value")
-                result[:t]       = Rust._pull("result$statistic")
+                result.pvalue    = Rust._pull("t.result$p.value")
+                result[:t]       = Rust._pull("t.result$statistic")
                 result.exact     = true
                 result.alpha     = alpha
                 
@@ -106,16 +106,37 @@ module Rust::StatisticalTests::T
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust["t.a"] = d1
+                Rust["t.b"] = d2
                 
-                Rust._eval("result = t.test(a, b, alternative='two.sided', paired=F)")
+                Rust._eval("t.result = t.test(t.a, t.b, alternative='two.sided', paired=F)")
                 result = Rust::StatisticalTests::Result.new
                 result.name      = "Welch Two Sample t-test"
-                result.pvalue    = Rust._pull("result$p.value")
-                result[:t]       = Rust._pull("result$statistic")
+                result.pvalue    = Rust._pull("t.result$p.value")
+                result[:t]       = Rust._pull("t.result$statistic")
                 result.exact     = true
                 result.alpha     = alpha
+                
+                return result
+            end
+        end
+    end
+end
+
+module Rust::StatisticalTests::Shapiro
+    class << self
+        def compute(vector, alpha = 0.05)
+            raise TypeError, "Expecting Array of numerics" if !vector.is_a?(Array) || !vector.all? { |e| e.is_a?(Numeric) }
+            Rust.exclusive do
+                Rust['shapiro.v'] = vector
+                
+                Rust._eval("shapiro.result = shapiro.test(shapiro.v)")
+                result = Rust::StatisticalTests::Result.new
+                result.name     = "Shapiro-Wilk normality test"
+                result.pvalue   = Rust._pull("shapiro.result$p.value")
+                result[:W]      = Rust._pull("shapiro.result$statistic")
+                result.exact    = true
+                result.alpha    = alpha
                 
                 return result
             end
