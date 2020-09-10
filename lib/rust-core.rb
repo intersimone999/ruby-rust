@@ -9,6 +9,10 @@ module Rust
     
     R_ENGINE     = RinRuby.new(echo: false)
     
+    private_constant    :R_ENGINE
+    private_constant    :R_MUTEX
+    private_constant    :CLIENT_MUTEX
+    
     @@debugging = false
     @@in_client_mutex = false
     
