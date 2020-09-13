@@ -191,7 +191,7 @@ module Rust::Plots
                 
                 function = Rust::Function.new(command)
                 function.options = self._augmented_options({"col" => options[:color]})
-                function.arguments << Rust::Variable.new("plotter.series")
+                function.arguments << Rust::Variable.new("density(plotter.series)")
                 function.call
             end
             
