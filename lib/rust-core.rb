@@ -375,7 +375,7 @@ module Rust
                 
                 my_row_index = my_keys[key]
                 if my_row_index
-                    my_row = self[my_row_index]
+                    my_row = self.row(my_row_index)
                     
                     to_add = {}
                     by.each do |colname|
@@ -477,60 +477,6 @@ module Rust
         
         def load_in_r_as(variable_name)
             Rust._eval("#{variable_name} <- matrix(c(#{@data.flatten.join(",")}), nrow=#{self.rows}, ncol=#{self.cols}, byrow=T)")
-        end
-    end
-    
-    class CSV
-        def self.read_all(pattern, **options)
-            result = {}
-            Dir.glob(pattern).each do |filename|
-                result[filename] = CSV.read(filename, **options)
-            end
-            return result
-        end
-        
-        def self.read(filename, **options)
-            hash = {}
-            labels = nil
-            
-            ::CSV.foreach(filename, **options) do |row|
-                # TODO fix this ugly patch
-                unless options[:headers]
-                    options[:headers] = (1..row.size).to_a.map { |e| "X#{e}" }
-                    
-                    return CSV.read(filename, **options)
-                end
-                
-                unless labels
-                    labels = row.headers
-                    labels.each do |label|
-                        hash[label] = []
-                    end
-                end
-                
-                labels.each do |label|
-                    hash[label] << row[label]
-                end
-            end
-            
-            return Rust::DataFrame.new(hash)
-        end
-        
-        def self.write(filename, dataframe, **options)
-            raise TypeError, "Expected Rust::DataFrame" unless dataframe.is_a?(Rust::DataFrame)
-            
-            write_headers = options[:headers] != false
-            options[:headers] = dataframe.column_names if options[:headers] == nil
-            
-            hash = {}
-            labels = nil
-            ::CSV.open(filename, 'w', write_headers: write_headers, **options) do |csv|
-                dataframe.each do |row|
-                    csv << row
-                end
-            end
-            
-            return true
         end
     end
     
