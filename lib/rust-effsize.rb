@@ -25,17 +25,17 @@ module Rust::EffectSize::CliffDelta
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust['effsize.a'] = d1
+                Rust['effsize.b'] = d2
                 
-                Rust._eval("result = cliff.delta(a, b)")
+                Rust._eval("effsize.result = cliff.delta(effsize.a, effsize.b)")
                 
                 result = Rust::EffectSize::Result.new
                 result.name                 = "Cliff's delta"
-                result.estimate             = Rust._pull("result$estimate")
-                result.confidence_interval  = Range.new(*Rust._pull("result$conf.int"))
-                result.confidence_level     = Rust._pull("result$conf.level")
-                result.magnitude            = Rust._pull("as.character(result$magnitude)").to_sym
+                result.estimate             = Rust._pull("effsize.result$estimate")
+                result.confidence_interval  = Range.new(*Rust._pull("effsize.result$conf.int"))
+                result.confidence_level     = Rust._pull("effsize.result$conf.level")
+                result.magnitude            = Rust._pull("as.character(effsize.result$magnitude)").to_sym
                 
                 return result
             end
@@ -50,17 +50,17 @@ module Rust::EffectSize::CohenD
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
             Rust.exclusive do
-                Rust::R_ENGINE.a = d1
-                Rust::R_ENGINE.b = d2
+                Rust['effsize.a'] = d1
+                Rust['effsize.b'] = d2
                 
-                Rust._eval("result = cohen.d(a, b)")
+                Rust._eval("effsize.result = cohen.d(effsize.a, effsize.b)")
                 
                 result = Rust::EffectSize::Result.new
                 result.name                 = "Cohen's d"
-                result.estimate             = Rust._pull("result$estimate")
-                result.confidence_interval  = Range.new(*Rust._pull("result$conf.int"))
-                result.confidence_level     = Rust._pull("result$conf.level")
-                result.magnitude            = Rust._pull("as.character(result$magnitude)").to_sym
+                result.estimate             = Rust._pull("effsize.result$estimate")
+                result.confidence_interval  = Range.new(*Rust._pull("effsize.result$conf.int"))
+                result.confidence_level     = Rust._pull("effsize.result$conf.level")
+                result.magnitude            = Rust._pull("as.character(effsize.result$magnitude)").to_sym
                 
                 return result
             end
