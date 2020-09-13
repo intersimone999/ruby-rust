@@ -45,10 +45,10 @@ module Rust::Descriptive
             raise "Percentiles outside the range: #{percentiles}" if percentiles.any? { |e| !e.between?(0, 1) } 
             
             Rust.exclusive do 
-                Rust::R_ENGINE.data  = data
-                Rust::R_ENGINE.percs = percentiles
+                Rust['descriptive.data'] = data
+                Rust['descriptive.percs'] = percentiles
                 
-                call_result = Rust._pull("quantile(data, percs)")
+                call_result = Rust._pull("quantile(descriptive.data, descriptive.percs)")
                 assert { call_result.is_a?(Array) }
                 assert { call_result.size == percentiles.size }
                 
