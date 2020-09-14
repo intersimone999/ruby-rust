@@ -1,5 +1,6 @@
 # Rust
 [![Gem Version](https://badge.fury.io/rb/rust.svg)](https://badge.fury.io/rb/rust)
+
 Rust provides Ruby Statistic facilities. It mostly relies on R (rinruby gem) and it provides a wrapper for the most useful statistical functions in a Ruby wrapper.
 
 ## Install
