@@ -10,13 +10,14 @@ module Rust:: Correlation
                 Rust['correlation.a'] = d1
                 Rust['correlation.b'] = d2
                 
-                Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='p')")
+                _, warnings = Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='p')", true)
                 
                 result = Result.new
                 result.name             = "Pearson's product-moment correlation"
                 result.statistics['t']  = Rust._pull('correlation.result$statistic')
                 result.pvalue           = Rust._pull('correlation.result$p.value')
                 result.correlation      = Rust._pull('correlation.result$estimate')
+                result.exact            = !warnings.include?("Cannot compute exact p-value with ties")
                 
                 return result
             end
@@ -36,13 +37,14 @@ module Rust:: Correlation
                 Rust['correlation.a'] = d1
                 Rust['correlation.b'] = d2
                 
-                Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='s')")
+                _, warnings = Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='s')", true)
                 
                 result = Result.new
                 result.name             = "Spearman's rank correlation rho"
                 result.statistics['S']  = Rust._pull('correlation.result$statistic')
                 result.pvalue           = Rust._pull('correlation.result$p.value')
                 result.correlation      = Rust._pull('correlation.result$estimate')
+                result.exact            = !warnings.include?("Cannot compute exact p-value with ties")
                 
                 return result
             end
@@ -62,13 +64,14 @@ module Rust:: Correlation
                 Rust['correlation.a'] = d1
                 Rust['correlation.b'] = d2
                 
-                Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='p')")
+                _, warnings = Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='p')", true)
                 
                 result = Result.new
                 result.name             = "Kendall's rank correlation tau"
                 result.statistics['T']  = Rust._pull('correlation.result$statistic')
                 result.pvalue           = Rust._pull('correlation.result$p.value')
                 result.correlation      = Rust._pull('correlation.result$estimate')
+                result.exact            = !warnings.include?("Cannot compute exact p-value with ties")
                 
                 return result
             end
@@ -84,11 +87,13 @@ module Rust:: Correlation
         attr_accessor   :statistics
         attr_accessor   :pvalue
         attr_accessor   :correlation
+        attr_accessor   :exact
         
         alias :estimate :correlation
         
         def initialize
             @statistics = {}
+            @exact = true
         end
         
         def [](name)
@@ -101,6 +106,7 @@ module Rust:: Correlation
                 
         def to_s
             return "#{name}. Correlation = #{correlation}, P-value = #{pvalue} " +
+                    (!@exact ? "P-value is not exact. " : "") + 
                     "#{ statistics.map { |k, v| k.to_s + " -> " + v.to_s  }.join(", ") }."
         end
     end
