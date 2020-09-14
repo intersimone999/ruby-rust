@@ -581,3 +581,7 @@ module Rust::RBindings
         Rust::DataFrame.new(*args)
     end
 end
+
+def bind_r!
+    include Rust::RBindings
+end
