@@ -4,8 +4,9 @@ require_relative 'rust-calls'
 module Rust::Plots
     class BasePlot
         def initialize
-            @plugins = []
+            @renderables = []
             @options = Rust::Options.new
+            @override_options = true
         end
         
         def x_label(label)
@@ -36,7 +37,13 @@ module Rust::Plots
             @options['xaxt'] = 'n'
             @options['yaxt'] = 'n'
             
-            self.plug(axis)
+            self._add_renderable(axis)
+            
+            return self
+        end
+        
+        def grid(grid)
+            self._add_renderable(grid)
             
             return self
         end
@@ -53,21 +60,25 @@ module Rust::Plots
             return self
         end
         
-        def plug(plugin)
-            raise TypeError, "Expected Plugin" unless plugin.is_a?(Plugin)
-            @plugins << plugin
+        def _add_renderable(renderable)
+            raise TypeError, "Expected Renderable" unless renderable.is_a?(Renderable)
+            @renderables << renderable
             
             return self
         end
         
         def []=(option, value)
-            @options[option] = value
+            @options[option.to_s] = value
+        end
+        
+        def _do_not_override_options!
+            @override_options = false
         end
         
         def show()
             Rust.exclusive do
                 self._show
-                self._run_plugins
+                self._render_others
             end
             
             return self
@@ -82,7 +93,7 @@ module Rust::Plots
             Rust.exclusive do
                 pdf_function.call
                 self._show
-                self._run_plugins
+                self._render_others
                 Rust._eval("dev.off()")
             end
             
@@ -94,9 +105,9 @@ module Rust::Plots
             raise "You are trying to show a BasePlot"
         end
         
-        def _run_plugins()
-            @plugins.each do |plugin|
-                plugin._run()
+        def _render_others()
+            @renderables.each do |renderable|
+                renderable._render()
             end
             
             return self
@@ -106,7 +117,7 @@ module Rust::Plots
             result = @options.clone
             
             options.each do |key, value|
-                result[key] = value
+                result[key] = value if !result[key] || @override_options
             end
             
             result.select! { |k, v| v != nil }
@@ -221,7 +232,7 @@ module Rust::Plots
         end
     end
     
-    class Plugin
+    class Renderable
         def initialize
             @options = Rust::Options.new
         end
@@ -233,12 +244,12 @@ module Rust::Plots
         end
         
         protected
-        def _run()
-            raise "You are trying to run an abstract Plugin"
+        def _render()
+            raise "You are trying to run an abstract Renderable"
         end
     end
     
-    class Axis < Plugin
+    class Axis < Renderable
         BELOW = 1
         LEFT  = 2
         ABOVE = 3
@@ -276,7 +287,7 @@ module Rust::Plots
             return self
         end
         
-        def _run()
+        def _render()
             function = Rust::Function.new("axis")
             function.options = @options
             
@@ -286,7 +297,7 @@ module Rust::Plots
         end
     end
     
-    class Grid < Plugin
+    class Grid < Renderable
         def initialize
             super()
             
@@ -330,7 +341,7 @@ module Rust::Plots
             return self
         end
         
-        def _run()
+        def _render()
             function = Rust::Function.new("grid")
             
             function.arguments << @x
@@ -345,7 +356,30 @@ module Rust::Plots
 end
 
 module Rust::RBindings
-    def plot(x, y)
-        Rust::Plots::ScatterPlot.new(x, y).show
+    def plot(x, y=(1..x.size).to_a, **options)
+        result = Rust::Plots::ScatterPlot.new(x, y)
+        
+        options.each do |k, v|
+            result[k] = v
+        end
+        
+        result._do_not_override_options!
+        
+        result.show
+    end
+    
+    def boxplot(*args, **options)
+        result = Rust::Plots::BoxPlot.new
+        options.each do |k, v|
+            result[k] = v
+        end
+        
+        result._do_not_override_options!
+        
+        args.each do |s|
+            result.series(s)
+        end
+        
+        result.show
     end
 end
