@@ -13,15 +13,17 @@ module Rust::Descriptive
         def standard_deviation(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             
-            # TODO implement
+            return Math.sqrt(variance(data))
         end
         alias :sd     :standard_deviation
         alias :stddev :standard_deviation
         
         def variance(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
+            return Float::NAN if data.size < 2
             
-            # TODO implement
+            mean = mean(data)
+            return data.map { |v| (v - mean) ** 2 }.sum.to_f / (data.size - 1)
         end
         alias :var     :variance
         
@@ -37,6 +39,12 @@ module Rust::Descriptive
                 i = (data.size / 2)
                 return (sorted[i - 1] + sorted[i]) / 2.0
             end
+        end
+        
+        def sum(data)
+            raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
+            
+            return data.sum
         end
         
         def quantile(data, percentiles=[0.0, 0.25, 0.5, 0.75, 1.0])
