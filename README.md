@@ -46,14 +46,14 @@ p merged.select_rows { |r| r['purchase.amount'] > 100 }.column("surname")
 ### Plots
 ```ruby
 # Create a scatter plot object (does not show anything) with the x and y values
-sp = Rust::ScatterPlot.new([1,2,3,4,5], [2,3,4,5,6])
+sp = Rust::Plots::ScatterPlot.new([1,2,3,4,5], [2,3,4,5,6])
 # Will connect the points with the lines
 sp.lines
 # Show the plot
 sp.show
 
 # Create a box plot object (does not show anything)
-bp = Rust::BoxPlot.new
+bp = Rust::Plots::BoxPlot.new
 # Add two series of data, one named 'hello', one named 'world'
 bp.series([1,2,3,5,4,6], name: 'hello')
 bp.series([2,4,6,3,5,4], name: 'world')
