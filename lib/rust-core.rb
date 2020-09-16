@@ -174,6 +174,7 @@ module Rust
         def column(name)
             return @data[name]
         end
+        alias :| :column
         
         def rename_column!(old_name, new_name)
             raise "This DataFrame does not contain a column named #{old_name}" unless @labels.include?(old_name)
@@ -510,6 +511,34 @@ module Rust
         
         def to_R
             "seq(from=#@min, to=#@max, by=#@step)"
+        end
+    end
+    
+    class DataFrameArray < Array
+        def bind_all
+            return nil if self.size == 0
+            
+            result = self.first.clone
+            
+            for i in 1...self.size
+                result .bind_rows!(self[i])
+            end
+            
+            return result
+        end
+    end
+    
+    class DataFrameHash < Hash
+        def bind_all
+            return nil if self.values.size == 0
+            
+            result = self.values.first.clone
+            
+            for i in 1...self.values.size
+                result .bind_rows!(self.values[i])
+            end
+            
+            return result
         end
     end
 end

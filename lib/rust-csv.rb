@@ -3,7 +3,7 @@ require_relative 'rust-core'
 module Rust
     class CSV
         def self.read_all(pattern, **options)
-            result = {}
+            result = DataFrameHash.new
             Dir.glob(pattern).each do |filename|
                 result[filename] = CSV.read(filename, **options)
             end
