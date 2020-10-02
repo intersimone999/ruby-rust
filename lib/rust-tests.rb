@@ -247,7 +247,7 @@ module Rust::StatisticalTests::T
                 result[:t]        = Rust._pull("t.result$statistic")
                 result.exact      = true
                 result.alpha      = alpha
-                result.hypothesis = Hypothesis.find(options[:hypothesis])
+                result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
                 
                 return result
             end
@@ -269,7 +269,7 @@ module Rust::StatisticalTests::Shapiro
                 result[:W]        = Rust._pull("shapiro.result$statistic")
                 result.exact      = true
                 result.alpha      = alpha
-                result.hypothesis = Hypothesis.find(options[:hypothesis])
+                result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
                 
                 return result
             end
