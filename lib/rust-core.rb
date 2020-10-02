@@ -130,7 +130,10 @@ module Rust
                 @labels.each { |label| @data[label] = [] }
             elsif labels_or_data.is_a? Hash
                 @labels = labels_or_data.keys.map { |l| l.to_s }
-                @data = labels_or_data.clone
+                
+                labels_or_data.each do |key, value|
+                    @data[key.to_s] = value
+                end
             end
         end
         
@@ -393,6 +396,32 @@ module Rust
                     
                     result << to_add
                 end
+            end
+            
+            return result
+        end
+        
+        def aggregate(by, **aggregators)
+            raise TypeError, "Expected a string" unless by.is_a?(String)
+            raise TypeError, "All the aggregators should be procs" unless aggregators.values.all? { |v| v.is_a?(Proc) }
+            raise "Expected a block for default aggregator" unless block_given?
+            
+            result = Rust::DataFrame.new(self.column_names)
+            
+            self.column(by).uniq.each do |value|
+                partial = self.select_rows { |r| r[by] == value }
+                
+                aggregated_row = {}
+                aggregated_row[by] = value
+                (self.column_names - [by]).each do |column|
+                    if aggregators[column.to_sym]
+                        aggregated_row[column] = aggregators[column.to_sym].call(partial.column(column))
+                    else
+                        aggregated_row[column] = yield partial.column(column)
+                    end
+                end
+                
+                result << aggregated_row
             end
             
             return result
