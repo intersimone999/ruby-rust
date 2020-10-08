@@ -179,7 +179,7 @@ module Rust::StatisticalTests::Wilcoxon
                 result[:w]        = Rust._pull("wilcox.result$statistic")
                 result.exact      = !warnings.include?("cannot compute exact p-value with zeroes")
                 result.alpha      = alpha
-                result.hypothesis = Hypothesis.find(options[:hypothesis])
+                result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
             
                 return result
             end
@@ -200,7 +200,7 @@ module Rust::StatisticalTests::Wilcoxon
                 result[:w]        = Rust._pull("wilcox.result$statistic")
                 result.exact      = !warnings.include?("cannot compute exact p-value with ties")
                 result.alpha      = alpha
-                result.hypothesis = Hypothesis.find(options[:hypothesis])
+                result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
                 
                 return result
             end
@@ -226,7 +226,7 @@ module Rust::StatisticalTests::T
                 result[:t]        = Rust._pull("t.result$statistic")
                 result.exact      = true
                 result.alpha      = alpha
-                result.hypothesis = Hypothesis.find(options[:hypothesis])
+                result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
                 
                 return result
             end
