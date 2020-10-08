@@ -145,6 +145,14 @@ module Rust
             end
         end
         
+        def fast_row(i)
+            if i < 0 || i >= self.rows
+                return nil
+            else
+                return @labels.map { |label| @data[label][i] }
+            end
+        end
+        
         def shuffle(*args)
             result = DataFrame.new(@labels)
             
@@ -247,7 +255,7 @@ module Rust
                 row.each do |key, value|
                     @data[key.to_s] << value
                 end
-#              
+                
                 return true
             else
                 raise TypeError, "Expected an Array or a Hash"
@@ -406,16 +414,30 @@ module Rust
             raise TypeError, "All the aggregators should be procs" unless aggregators.values.all? { |v| v.is_a?(Proc) }
             raise "Expected a block for default aggregator" unless block_given?
             
-            result = Rust::DataFrame.new(self.column_names)
+            aggregators = aggregators.map { |label, callable| [label.to_s, callable] }.to_h
             
-            self.column(by).uniq.each do |value|
-                partial = self.select_rows { |r| r[by] == value }
-                
+            sorted = self.sort_by(by)
+            
+            current_value = nil
+            partials = []
+            partial = nil
+            sorted.column(by).each_with_index do |value, index|
+                if current_value != value
+                    current_value = value
+                    partials << partial if partial
+                    partial = Rust::DataFrame.new(self.column_names)
+                end
+                partial << sorted.fast_row(index)
+            end
+            partials << partial
+            
+            result = Rust::DataFrame.new(self.column_names)
+            partials.each do |partial|
                 aggregated_row = {}
-                aggregated_row[by] = value
+                aggregated_row[by] = partial.column(by)[0]
                 (self.column_names - [by]).each do |column|
-                    if aggregators[column.to_sym]
-                        aggregated_row[column] = aggregators[column.to_sym].call(partial.column(column))
+                    if aggregators[column]
+                        aggregated_row[column] = aggregators[column].call(partial.column(column))
                     else
                         aggregated_row[column] = yield partial.column(column)
                     end
@@ -425,6 +447,23 @@ module Rust
             end
             
             return result
+        end
+        
+        def sort_by(column)
+            result = self.clone
+            result.sort_by!(column)
+            return result
+        end
+        
+        def sort_by!(by)
+            (self.column_names - [by]).each do |column|
+                mapped = {}
+                @data[column].each_with_index { |v, i| mapped[v] = @data[by][i] }
+                
+                @data[column].sort_by! { |v| mapped[v] }
+            end
+            
+            @data[by].sort!
         end
         
         def bind_rows!(dataframe)
