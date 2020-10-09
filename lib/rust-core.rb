@@ -132,7 +132,7 @@ module Rust
                 @labels = labels_or_data.keys.map { |l| l.to_s }
                 
                 labels_or_data.each do |key, value|
-                    @data[key.to_s] = value
+                    @data[key.to_s] = value.clone
                 end
             end
         end
@@ -207,6 +207,13 @@ module Rust
             return result
         end
         
+        def has_row?
+            self.each_with_index do |row, i|
+                return true if yield row, i
+            end
+            return false
+        end
+        
         def select_columns(cols=nil)
             raise "You must specify either the columns you want to select or a selection block" if !cols && !block_given?
             
@@ -225,6 +232,40 @@ module Rust
         def delete_column(column)
             @labels.delete(column)
             @data.delete(column)
+        end
+        
+        def delete_row(i)
+            @data.each do |label, column|
+                column.delete_at(i)
+            end
+        end
+        
+        def uniq_by(by)
+            result = self.clone
+            result.uniq_by!(by)
+            return result
+        end
+        
+        def uniq_by!(by)
+            my_keys = {}
+            to_delete = []
+            self.each_with_index do |row, i|
+                key = []
+                by.each do |colname|
+                    key << row[colname]
+                end
+                unless my_keys[key]
+                    my_keys[key] = i
+                else
+                    to_delete << (i-to_delete.size)
+                end
+            end
+            
+            to_delete.each do |i|
+                self.delete_row(i)
+            end
+            
+            return self
         end
         
         def column_names
@@ -287,11 +328,32 @@ module Rust
             return self
         end
         
+        def fast_each
+            self.fast_each_with_index do |element, i|
+                yield element
+            end
+            
+            return self
+        end
+        
         def each_with_index
             for i in 0...self.rows
                 element = {}
                 @labels.each do |label|
                     element[label] = @data[label][i]
+                end
+                
+                yield element, i
+            end
+            
+            return self
+        end
+        
+        def fast_each_with_index
+            for i in 0...self.rows
+                element = []
+                @labels.each do |label|
+                    element << @data[label][i]
                 end
                 
                 yield element, i
@@ -456,13 +518,27 @@ module Rust
         end
         
         def sort_by!(by)
-            (self.column_names - [by]).each do |column|
-                mapped = {}
-                @data[column].each_with_index { |v, i| mapped[v] = @data[by][i] }
-                
-                @data[column].sort_by! { |v| mapped[v] }
-            end
+            copy = @data[by].clone
+            copy.sort!
             
+            indices = []
+            @data[by].each_with_index do |value, i|
+                index = copy.index(value)
+                indices << index
+                
+                copy[index] = NilClass
+            end
+                        
+            (self.column_names - [by]).each do |column_name|
+                sorted = []
+                column = self.column(column_name)
+                column_i = 0
+                indices.each do |i|
+                    sorted[i] = column[column_i]
+                    column_i += 1
+                end
+                @data[column_name] = sorted
+            end
             @data[by].sort!
         end
         
@@ -676,6 +752,16 @@ module Rust::RBindings
     
     def data_frame(*args)
         Rust::DataFrame.new(*args)
+    end
+end
+
+module Rust::TestCases
+    def self.sample_dataframe(columns, size=100)
+        result = Rust::DataFrame.new(columns)
+        size.times do |i|
+            result << columns.map { |c| yield i, c }
+        end
+        return result
     end
 end
 
