@@ -49,10 +49,9 @@ module Rust
             raise TypeError, "Expected Rust::DataFrame" unless dataframe.is_a?(Rust::DataFrame)
             
             write_headers = options[:headers] != false
-            options[:headers] = dataframe.column_names if options[:headers] == nil
+            options[:headers] = dataframe.column_names unless options[:headers]
             
             hash = {}
-            labels = nil
             ::CSV.open(filename, 'w', write_headers: write_headers, **options) do |csv|
                 dataframe.each do |row|
                     csv << row
