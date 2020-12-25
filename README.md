@@ -1,7 +1,7 @@
 # Rust
 [![Gem Version](https://badge.fury.io/rb/rust.svg)](https://badge.fury.io/rb/rust)
 
-Rust provides Ruby Statistic facilities. It mostly relies on R (rinruby gem) and it provides a wrapper for the most useful statistical functions in a Ruby wrapper.
+Rust provides Ruby Statistic facilities. It mostly relies on R (rinruby gem) and it provides the most useful statistical functions in a Ruby wrapper.
 
 ## Install
 To install the latest version of Rust, simply run the following command
@@ -11,7 +11,7 @@ gem install rust
 ```
 
 ## Structure
-Everything in Rust is defined in the `Rust` module and organized in submodule, one for each core feature. The modules currently available are:
+Everything in Rust is defined in the `Rust` module and organized in submodules, one for each core feature. The modules currently available are:
 
 - `Rust` contains the core data structures (data frames, matrices) and functions that allow to interact with R. The data structures provide their core functions (e.g., data frames have the `merge` method);
 - `Rust::Descriptive` provides descriptive statistic functions (e.g., mean, variance);
