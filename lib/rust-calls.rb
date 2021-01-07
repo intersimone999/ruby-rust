@@ -34,6 +34,17 @@ module Rust
         end
     end
     
+    class SimpleFormula
+        def initialize(dependent, independent)
+            @dependent = dependent
+            @independent = independent
+        end
+        
+        def to_R
+            return "#@dependent ~ #@independent"
+        end
+    end
+    
     class Variable
         def initialize(name)
             @name = name

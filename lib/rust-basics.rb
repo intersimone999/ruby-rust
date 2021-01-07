@@ -1,6 +1,6 @@
 require_relative 'rust-core'
 
-module Rust:: Correlation
+module Rust::Correlation
     class Pearson
         def self.test(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }

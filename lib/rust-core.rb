@@ -727,6 +727,14 @@ class Array
     def to_R
         return "c(#{self.map { |e| e.to_R }.join(",")})"
     end
+    
+    def distribution
+        result = {}
+        self.each do |value|
+            result[value] = result[value].to_i + 1
+        end
+        return result
+    end
 end
 
 class String
