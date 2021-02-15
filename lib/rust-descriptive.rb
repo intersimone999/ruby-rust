@@ -50,18 +50,59 @@ module Rust::Descriptive
         def quantile(data, percentiles=[0.0, 0.25, 0.5, 0.75, 1.0])
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !percentiles.is_a?(Array) || !percentiles.all? { |e| e.is_a?(Numeric) }
-            raise "Percentiles outside the range: #{percentiles}" if percentiles.any? { |e| !e.between?(0, 1) } 
+            raise "Percentiles outside the range: #{percentiles}" if percentiles.any? { |e| !e.between?(0, 1) }
             
-            Rust.exclusive do 
-                Rust['descriptive.data'] = data
-                Rust['descriptive.percs'] = percentiles
-                
-                call_result = Rust._pull("quantile(descriptive.data, descriptive.percs)")
-                assert { call_result.is_a?(Array) }
-                assert { call_result.size == percentiles.size }
-                
-                return percentiles.zip(call_result).to_h
+            n = data.size
+            quantiles = percentiles.size
+            percentiles = percentiles.map { |x| x > 1.0 ? 1.0 : (x < 0.0 ? 0.0 : x) }
+            
+            rough_indices = percentiles.map { |x| 1 + [n - 1, 0].max * x - 1 }
+            floor_indices = rough_indices.map { |i| i.floor }
+            ceil_indices = rough_indices.map { |i| i.ceil }
+            
+            data = data.sort
+            result = floor_indices.map { |i| data[i] }
+            result_ceil = ceil_indices.map { |i| data[i] }
+            
+            indices_to_fix = (0...quantiles).select { |i| rough_indices[i] > floor_indices[i] && result_ceil[i] != result[i] }
+            index_approximation_errors = indices_to_fix.map { |i| rough_indices[i] - floor_indices[i] }
+            reduced_index_approximation_errors = index_approximation_errors.map { |i| (1 - i) }
+            hi_indices = indices_to_fix.map { |i| ceil_indices[i] }
+            data_hi_indices = hi_indices.map { |i| data[i] }
+            
+            j = 0
+            indices_to_fix.each do |i|
+                result[i] = reduced_index_approximation_errors[j] * result[i] + index_approximation_errors[j] * data_hi_indices[j]
+                j += 1
             end
+            
+            return percentiles.zip(result).to_h
+        end
+        
+        def outliers(data, k=1.5, **opts)
+            outliers_according_to(data, data, k, **opts)
+        end
+        
+        def outliers_according_to(data, data_distribution, k=1.5, **opts)
+            quantiles = Rust::Descriptive.quantile(data_distribution, [0.25, 0.75])
+            q1 = quantiles[0.25]
+            q3 = quantiles[0.75]
+            iqr = q3 - q1
+            
+            positive_outliers = data.select { |d| d > q3 + iqr * k }
+            negative_outliers = data.select { |d| d < q1 - iqr * k }
+            
+            outliers = negative_outliers + positive_outliers
+            if opts[:side]
+                case opts[:side].to_sym
+                when :positive, :neg, :n, :+
+                    outliers = positive_outliers
+                when :negative, :pos, :p, :-
+                    outliers = negative_outliers
+                end
+            end
+            
+            return outliers
         end
     end
 end
