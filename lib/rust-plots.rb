@@ -22,7 +22,11 @@ module Rust::Plots
         end
         
         def palette(size)
-            return Rust._pull("hcl.colors(n=#{size})")
+            if size <= 1
+                return ['black']
+            else
+                return Rust._pull("hcl.colors(n=#{size})")
+            end
         end
         
         def x_range(range)
