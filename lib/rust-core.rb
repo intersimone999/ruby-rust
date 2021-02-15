@@ -685,6 +685,71 @@ module Rust
             return result
         end
     end
+    
+    class Array < ::Array
+        def -(other)
+            raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
+            raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
+            
+            result = self.clone
+            other = [other] * self.size if other.is_a?(Numeric)
+            for i in 0...self.size
+                result[i] -= other[i]
+            end
+            
+            return result
+        end
+        
+        def *(other)
+            raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
+            raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
+            
+            result = self.clone
+            other = [other] * self.size if other.is_a?(Numeric)
+            for i in 0...self.size
+                result[i] *= other[i]
+            end
+            
+            return result
+        end
+                
+        def +(other)
+            raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
+            raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
+            
+            result = self.clone
+            other = [other] * self.size if other.is_a?(Numeric)
+            for i in 0...self.size
+                result[i] += other[i]
+            end
+            
+            return result
+        end
+        
+        def /(other) #To recover the syntax highlighting but in Kate: /
+            raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
+            raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
+            
+            result = self.clone
+            other = [other] * self.size if other.is_a?(Numeric)
+            for i in 0...self.size
+                result[i] /= other[i]
+            end
+            
+            return result
+        end
+        
+        def **(other)
+            raise ArgumentError, "Expected numeric" if !other.is_a?(Numeric)
+            
+            result = self.clone
+            for i in 0...self.size
+                result[i] = result[i] ** other
+            end
+            
+            return result
+        end
+    end
 end
 
 class TrueClass
