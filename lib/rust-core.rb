@@ -625,7 +625,7 @@ module Rust
         end
     end
     
-    class Sequence
+    class Sequence < RustDatatype
         attr_reader :min
         attr_reader :max
         
@@ -655,6 +655,10 @@ module Rust
         
         def to_R
             "seq(from=#@min, to=#@max, by=#@step)"
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust._eval("#{variable_name} <- #{self.to_R}")
         end
     end
     
@@ -686,7 +690,7 @@ module Rust
         end
     end
     
-    class Array < ::Array
+    class MathArray < Array
         def -(other)
             raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
             raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
@@ -815,14 +819,6 @@ class Range
 end
 
 module Rust::RBindings
-    def read_csv(filename, **options)
-        Rust::CSV.read(filename, **options)
-    end
-    
-    def write_csv(filename, dataframe, **options)
-        Rust::CSV.write(filename, dataframe, **options)
-    end
-    
     def data_frame(*args)
         Rust::DataFrame.new(*args)
     end

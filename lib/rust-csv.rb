@@ -92,3 +92,13 @@ module Rust
         end
     end
 end
+
+module Rust::RBindings
+    def read_csv(filename, **options)
+        Rust::CSV.read(filename, **options)
+    end
+    
+    def write_csv(filename, dataframe, **options)
+        Rust::CSV.write(filename, dataframe, **options)
+    end
+end
