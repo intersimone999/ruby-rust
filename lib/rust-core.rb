@@ -104,20 +104,80 @@ module Rust
     
     class RustDatatype
         def self.pull_variable(variable)
+            r_type = Rust._pull("typeof(#{variable})")
+            r_class = Rust._pull("class(#{variable})")
+            
+            ObjectSpace.each_object(Class) do |type|
+                if type < RustDatatype
+                    if type.can_pull?(r_type, r_class)
+                        return type.pull_variable(variable)
+                    end
+                end
+            end
+            
             return Rust._pull(variable)
         end
         
-        def load_in_r_as(r_instance, variable_name)
+        def load_in_r_as(variable_name)
             raise "Not implemented"
         end
     end
     
+    class List < RustDatatype
+        def self.can_pull?(type, klass)
+            return type == "list" && klass != "data.frame"
+        end
+        
+        def self.pull_variable(variable)
+            klass = Rust._pull("class(#{variable})")
+            return List.new(klass) if Rust._pull("length(names(#{variable}))") == 0
+            
+            elements = Rust["names(#{variable})"]
+            
+            list = List.new(klass)
+            elements.each do |element|
+                list[element] = Rust["#{variable}$#{element}"]
+            end
+            
+            return list
+        end
+        
+        def load_in_r_as(variable_name)
+            R._eval("#{variable_name} <- list()")
+            @data.each do |key, value|
+                Rust[key] = value
+            end
+        end
+        
+        def initialize(klass)
+            @data = {}
+            @klass = klass
+        end
+        
+        def [](key)
+            @data[key]
+        end
+        alias :| :[]
+        
+        def []=(key, value)
+            @data[key] = value
+        end
+        
+        def names
+            @data.keys
+        end
+    end
+    
     class DataFrame < RustDatatype
+        def self.can_pull?(type, klass)
+            return klass == "data.frame"
+        end
+        
         def self.pull_variable(variable)
             hash = {}
-            colnames = Rust._pull("colnames(#{variable})")
+            colnames = Rust["colnames(#{variable})"]
             colnames.each do |col|
-                hash[col] = Rust._pull("#{variable}$#{col}")
+                hash[col] = Rust["#{variable}$\"#{col}\""]
             end
             return DataFrame.new(hash)
         end
@@ -587,6 +647,10 @@ module Rust
     end
     
     class Matrix < RustDatatype
+        def self.can_pull?(type, klass)
+            return klass.is_a?(Array) && klass.include?("matrix")
+        end
+        
         def self.pull_variable(variable)
             return Rust._pull(variable)
         end
@@ -628,6 +692,10 @@ module Rust
     class Sequence < RustDatatype
         attr_reader :min
         attr_reader :max
+        
+        def self.can_pull?(type, klass)
+            return false
+        end
         
         def initialize(min, max, step=1)
             @min = min
@@ -752,6 +820,84 @@ module Rust
             end
             
             return result
+        end
+    end
+        
+    class Formula < RustDatatype
+        def self.can_pull?(type, klass)
+            return klass == "formula" || (klass.is_a?(Array) && klass.include?("formula"))
+        end
+        
+        def self.pull_variable(variable)
+            formula_elements = Rust._pull("as.character(#{variable})")
+
+            assert("The number of elements of a formula must be 2 or 3: #{formula_elements} given") { formula_elements.size > 1 && formula_elements.size < 4 }
+            if formula_elements.size == 2
+               return Formula.new(nil, formula_elements[1]) 
+            elsif formula_elements.size == 3
+                return Formula.new(formula_elements[2], formula_elements[1])
+            end
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust._eval("#{variable_name} <- #{self.left_part} ~ #{self.right_part}")
+        end
+        
+        attr_reader     :left_part
+        attr_reader     :right_part
+        
+        def initialize(left_part, right_part)
+            raise ArgumentError, "Expected string" if left_part && !left_part.is_a?(String)
+            raise ArgumentError, "Expected string" if !right_part.is_a?(String)
+            
+            @left_part  = left_part || ""
+            @right_part = right_part
+        end
+        
+        def ==(oth)
+            return false unless oth.is_a?(Formula)
+            
+            return @left_part == oth.left_part && @right_part == oth.right_part
+        end
+        
+        def to_R
+            return "#@left_part ~ #@right_part"
+        end
+        
+        def inspect
+            return self.to_R.strip
+        end
+    end
+    
+    class Call < RustDatatype
+        def self.can_pull?(type, klass)
+            return klass == "call"
+        end
+        
+        def self.pull_variable(variable)
+            return Call.new(Rust["as.character(#{variable})"])
+        end
+        
+        def initialize(value = [])
+            @value = []
+        end
+        
+        def value
+            @value
+        end
+    end
+    
+    class Null < RustDatatype
+        def self.can_pull?(type, klass)
+            return type == "NULL" && klass == "NULL"
+        end
+        
+        def self.pull_variable(variable)
+            return nil
+        end
+        
+        def self.load_in_r_as(variable)
+            Rust._eval("#{variable} = NULL")
         end
     end
 end
