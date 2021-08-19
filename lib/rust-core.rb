@@ -20,6 +20,10 @@ module Rust
         @@debugging = true
     end
     
+    def self.debug?
+        return @@debugging
+    end
+    
     def self.exclusive
         result = nil
         CLIENT_MUTEX.synchronize do
@@ -33,10 +37,11 @@ module Rust
     def self.[]=(variable, value)
         if value.is_a?(RustDatatype)
             value.load_in_r_as(variable.to_s)
-        elsif value.is_a?(String) || value.is_a?(Numeric) || value.is_a?(Array)
+        elsif value.is_a?(String) || value.is_a?(Numeric) || value.is_a?(Array) || value.is_a?(::Matrix)
             R_ENGINE.assign(variable, value)
         else
-            raise "Given #{value.class}, expected RustDatatype, String, Numeric, or Array"
+            p value
+            raise "Trying to assign #{variable} with #{value.class}; expected RustDatatype, String, Numeric, or Array"
         end
         
     end
@@ -102,6 +107,34 @@ module Rust
         end
     end
     
+    def self.check_library(name)
+        self.exclusive do
+            result, _ = self._pull("require(\"#{name}\", character.only = TRUE)", true)
+            return result
+        end
+    end
+    
+    def self.load_library(name)
+        self.exclusive do
+            self._eval("library(\"#{name}\", character.only = TRUE)")
+        end
+        
+        return nil
+    end
+    
+    def self.install_library(name)
+        self.exclusive do
+            self._eval("install.packages(\"#{name}\", dependencies = TRUE)")
+        end
+        
+        return nil
+    end
+    
+    def self.prerequisite(library)
+        self.install_library(library) unless self.check_library(library)
+        self.load_library(library)
+    end
+    
     class RustDatatype
         def self.pull_variable(variable)
             r_type = Rust._pull("typeof(#{variable})")
@@ -119,7 +152,39 @@ module Rust
         end
         
         def load_in_r_as(variable_name)
-            raise "Not implemented"
+            raise "Loading #{self.class} in R was not implemented"
+        end
+        
+        def r_mirror_to(other_variable)
+            varname = self.mirrored_R_variable_name
+            
+            Rust._eval("#{varname} = #{other_variable}")
+            Rust["#{varname}.hash"] = self.r_hash
+                        
+            return varname
+        end
+        
+        def r_mirror
+            varname = self.mirrored_R_variable_name
+                        
+            if !Rust["exists(\"#{varname}\")"] || Rust["#{varname}.hash"] != self.r_hash
+                puts "Loading #{varname}" if Rust.debug?
+                Rust[varname] = self
+                Rust["#{varname}.hash"] = self.r_hash
+            else
+                puts "Using cached value for #{varname}" if Rust.debug?
+            end
+            
+            return varname
+        end
+        
+        def r_hash
+            self.hash.to_s
+        end
+        
+        private
+        def mirrored_R_variable_name
+            return "rust.mirrored.#{self.object_id}"
         end
     end
     
@@ -143,7 +208,7 @@ module Rust
         end
         
         def load_in_r_as(variable_name)
-            R._eval("#{variable_name} <- list()")
+            Rust._eval("#{variable_name} <- list()")
             @data.each do |key, value|
                 Rust[key] = value
             end
@@ -433,6 +498,14 @@ module Rust
                 row_index += 1
             end
             
+            self.column_names.each do |name|
+                column = self.column(name)
+                
+                if column.is_a?(Factor)
+                    command << "#{variable_name}[,#{name.to_R}] <- factor(#{variable_name}[,#{name.to_R}], labels=#{column.levels.to_R})"
+                end
+            end
+            
             Rust._eval_big(command)
         end
         
@@ -652,21 +725,42 @@ module Rust
         end
         
         def self.pull_variable(variable)
-            return Rust._pull(variable)
+            core = Rust._pull(variable)
+            row_names = Rust["rownames(#{variable})"]
+            column_names = Rust["colnames(#{variable})"]
+            Matrix.new(core, row_names, column_names)
         end
         
-        def initialize(data)
-            if data.flatten.size == 0
+        def load_in_r_as(variable_name)
+            matrix = ::Matrix[*@data]
+            
+            Rust[variable_name] = matrix
+        end
+        
+        def initialize(data, row_names = nil, column_names = nil)
+            @data = data.clone
+            
+            @row_names = row_names
+            @column_names = column_names
+            
+            if @data.is_a?(::Matrix)
+                @data = @data.row_vectors.map { |v| v.to_a }
+            end
+            
+            if self.flatten.size == 0
                 raise "Empty matrices are not allowed"
             else
-                raise TypeError, "Expected array of array" unless data.is_a?(Array) && data[0].is_a?(Array)
-                raise TypeError, "Only numeric matrices are supported" unless data.all? { |row| row.all?  { |e| e.is_a?(Numeric) } }
-                raise "All the rows must have the same size" unless data.map { |row| row.size }.uniq.size == 1
-                @data = data.clone
+                raise TypeError, "Expected array of array" unless @data.is_a?(Array) || @data[0].is_a?(Array)
+                raise TypeError, "Only numeric matrices are supported" unless self.flatten.all? { |e| e.is_a?(Numeric) }
+                raise "All the rows must have the same size" unless @data.map { |row| row.size }.uniq.size == 1
+                raise ArgumentError, "Expected row names to match the number of rows" if row_names && row_names.size != self.rows
+                raise ArgumentError, "Expected column names to match the number of columns" if @column_names && @column_names.size != self.cols
             end
         end
         
         def [](i, j)
+            i, j = indices(i, j)
+            
             return @data[i][j]
         end
         
@@ -678,14 +772,71 @@ module Rust
             @data[0].size
         end
         
+        def flatten
+            return @data.flatten
+        end
+        
         def []=(i, j, value)
-            raise "Wrong i" unless i.between?(0, @data.size - 1)
-            raise "Wrong j" unless j.between?(0, @data[0].size - 1)
+            i, j = indices(i, j)
+            
             @data[i][j] = value
         end
         
-        def load_in_r_as(variable_name)
-            Rust._eval("#{variable_name} <- matrix(c(#{@data.flatten.join(",")}), nrow=#{self.rows}, ncol=#{self.cols}, byrow=T)")
+        def inspect
+            row_names = @row_names || (0...self.rows).to_a.map { |v| v.to_s }
+            column_names = @column_names || (0...self.cols).to_a.map { |v| v.to_s }
+            
+            separator = " | "
+            col_widths = column_names.map do |colname| 
+                [
+                    colname, 
+                    (
+                        [colname.length] + 
+                        @data.map {|r| r[column_names.index(colname)]}.map { |e| e.inspect.length }
+                    ).max
+                ]
+            end.to_h
+            col_widths[:rowscol] = row_names.map { |rowname| rowname.length }.max + 3
+            
+            result = ""
+            result << "-" * (col_widths.values.sum + ((col_widths.size - 1) * separator.length)) + "\n"
+            result << (" " * col_widths[:rowscol]) + column_names.map { |colname| (" " * (col_widths[colname] - colname.length)) + colname }.join(separator) + "\n"
+            result << "-" * (col_widths.values.sum + ((col_widths.size - 1) * separator.length)) + "\n"
+            
+            @data.each_with_index do |row, i|
+                row_name = row_names[i]
+                row = column_names.zip(row)
+                
+                index_part = "[" + (" " * (col_widths[:rowscol] - row_name.length - 3)) + "#{row_name}] "
+                row_part   = row.map { |colname, value| (" " * (col_widths[colname] - value.inspect.length)) + value.inspect }.join(separator)
+                
+                result << index_part + row_part + "\n"
+            end
+            
+            result << "-" * (col_widths.values.sum + ((col_widths.size - 1) * separator.length))
+            
+            return result
+        end
+        
+        private
+        def indices(i, j)
+            if i.is_a?(String)
+                ri = @row_names.index(i)
+                raise ArgumentError, "Can not find row #{i}" unless ri
+                i = ri
+            end
+            
+            if j.is_a?(String)
+                rj = @column_names.index(j)
+                raise ArgumentError, "Can not find column #{j}" unless rj
+                j = rj
+            end
+            
+            raise ArgumentError, "Expected i and j to be both integers or strings" unless i.is_a?(Integer) && j.is_a?(Integer)
+            raise "Wrong i" unless i.between?(0, @data.size - 1)
+            raise "Wrong j" unless j.between?(0, @data[0].size - 1)
+            
+            return [i, j]
         end
     end
     
@@ -798,7 +949,7 @@ module Rust
             return result
         end
         
-        def /(other) #To recover the syntax highlighting but in Kate: /
+        def /(other) #/# <- this comment is just to recover the syntax highlighting bug in Kate
             raise ArgumentError, "Expected array or numeric" if !other.is_a?(::Array) && !other.is_a?(Numeric)
             raise ArgumentError, "The two arrays must have the same size" if other.is_a?(::Array) && self.size != other.size
             
@@ -869,21 +1020,154 @@ module Rust
         end
     end
     
+    class Factor < RustDatatype
+        def self.can_pull?(type, klass)
+            return klass == "factor"
+        end
+        
+        def self.pull_variable(variable)
+            levels = Rust["levels(#{variable})"]
+            values = Rust["as.integer(#{variable})"]
+            
+            return Factor.new(values, levels)
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust['tmp.levels'] = @levels.map { |v| v.to_s }
+            Rust['tmp.values'] = @values
+            
+            Rust._eval("#{variable_name} <- factor(tmp.values, labels=tmp.levels)")
+        end
+        
+        def initialize(values, levels)
+            @levels = levels.map { |v| v.to_sym }
+            @values = values
+        end
+        
+        def levels
+            @levels
+        end
+        
+        def ==(other)
+            return false unless other.is_a?(Factor)
+            
+            return @levels == other.levels && self.to_a == other.to_a
+        end
+        
+        def [](i)
+            FactorValue.new(@values[i], @levels[@values[i] - 1])
+        end
+        
+        def []=(i, value)
+            raise "The given value is outside the factor bounds" if value.is_a?(Integer) && (value < 1 || value > @levels.size)
+            
+            if value.is_a?(FactorValue)
+                raise "Incompatible factor value, different levels used" unless @levels.include?(value.level) || @levels.index(value.level) + 1 == @value.value
+                value = value.value
+            end
+            
+            if value.is_a?(String) || value.is_a?(Symbol)
+                value = value.to_sym
+                raise "Unsupported value #{value}; expected #{@levels.join(", ")}" unless @levels.include?(value)
+                
+                value = @levels.index(value) + 1
+            end
+            
+            @values[i] = value
+        end
+        
+        def to_a
+            @values.map { |v| FactorValue.new(v, @levels[v - 1]) }
+        end
+        
+        def method_missing(method, *args, &block)
+            raise NoMethodError, "Undefined method #{method} for Factor" if method.to_s.end_with?("!") || method.end_with?("=")
+            
+            self.to_a.method(method).call(*args, &block)
+        end
+        
+        def to_s
+            self.to_a.to_s
+        end
+        
+        def inspect
+            self.to_a.inspect
+        end
+    end
+    
+    class FactorValue
+        def initialize(value, level)
+            @value = value
+            @level = level
+        end
+        
+        def value
+            @value
+        end
+        
+        def level
+            @level
+        end
+        
+        def to_i
+            @value
+        end
+        
+        def to_sym
+            @level
+        end
+        
+        def to_R
+            self.to_i
+        end
+        
+        def inspect
+            @level.inspect
+        end
+        
+        def ==(other)
+            if other.is_a?(FactorValue)
+                @value == other.value && @level == other.level
+            elsif other.is_a?(Integer)
+                @value == other
+            elsif other.is_a?(Symbol)
+                @level == other
+            end
+        end
+        
+        def hash
+            @value.hash + @level.hash
+        end
+        
+        def eql?(other)
+            return self == other
+        end
+        
+        def method_missing(method, *args, &block)
+            @level.method(method).call(*args, &block)
+        end
+    end
+        
     class Call < RustDatatype
         def self.can_pull?(type, klass)
             return klass == "call"
         end
         
         def self.pull_variable(variable)
-            return Call.new(Rust["as.character(#{variable})"])
+            return Call.new(Rust["deparse(#{variable})"])
         end
         
-        def initialize(value = [])
-            @value = []
+        def initialize(value)
+            @value = value
         end
         
         def value
             @value
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust["call.str"] = @value
+            Rust._eval("#{variable_name} <- str2lang(call.str)")
         end
     end
     
@@ -935,6 +1219,12 @@ end
 class Float
     def to_R
         return self.nan? ? "NA" : super
+    end
+end
+
+class Symbol
+    def to_R
+        return self.to_s.inspect
     end
 end
 
