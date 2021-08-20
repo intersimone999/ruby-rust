@@ -1,4 +1,6 @@
 require_relative 'rust-core'
+require_relative 'rust-descriptive'
+require_relative 'rust-basics'
 
 module Rust::Models
 end
@@ -8,12 +10,6 @@ module Rust::Models::Regression
         def self.can_pull?(type, klass)
             # Can only pull specific sub-types
             return false
-        end
-        
-        def self.pull_variable(klass, variable)
-            model = Rust::List.pull_variable(variable)
-            
-            return klass.new(model)
         end
         
         def load_in_r_as(variable_name)
@@ -34,7 +30,7 @@ module Rust::Models::Regression
                 Rust["#{model_type}.data"] = data
                 
                 Rust._eval("#{model_type}.model.result <- #{model_type}(#{formula.to_R}, data=#{model_type}.data#{mapped})")
-                result = object_type.new(Rust["#{model_type}.model.result"])
+                result = Rust["#{model_type}.model.result"]
                 result.r_mirror_to("#{model_type}.model.result")
                 
                 return result
@@ -42,6 +38,7 @@ module Rust::Models::Regression
         end
             
         def initialize(model)
+            raise StandardError if model.is_a?(RegressionModel)
             @model = model
         end
         
@@ -65,19 +62,24 @@ module Rust::Models::Regression
             return @fitted
         end
         
+        def actuals            
+            return self.fitted.zip(self.residuals).map { |couple| couple.sum }
+        end
+        
         def r_2
-            # Sum fitted and residual values to get actual values
-            actuals = @fitted.zip(@residuals).map { |couple| couple.sum }
-            
-            return Rust::Correlation::Pearson.estimate(actuals, @fitted) ** 2
+            return self.summary|"r.squared"
+        end
+        
+        def r_2_adjusted
+            return self.summary|"adj.r.squared"
         end
         
         def mse
-            Rust::Descriptive.variance(@residuals)
+            Rust::Descriptive.variance(self.residuals)
         end
         
         def coefficients
-            a = self.summary
+            a = self.summary|"coefficients"
         end
         
         def method_missing(name, *args)
@@ -101,11 +103,13 @@ module Rust::Models::Regression
     
     class LinearRegressionModel < RegressionModel
         def self.can_pull?(type, klass)
-            return type == "list" && klass != "lm"
+            return type == "list" && klass == "lm"
         end
         
-        def self.pull_variable(variable)
-            return RegressionModel.pull_variable(LinearRegressionModel, variable)
+        def self.pull_variable(variable, type, klass)
+            model = Rust::RustDatatype.pull_variable(variable, Rust::List)
+            
+            return LinearRegressionModel.new(model)
         end
         
         def self.generate(dependent_variable, independent_variables, data, **options)
@@ -122,14 +126,36 @@ module Rust::Models::Regression
     
     class LinearMixedEffectsModel < RegressionModel
         def self.can_pull?(type, klass)
-            return type == "list" && klass != "lmer"
+            return type == "S4" && klass == "lmerModLmerTest"
         end
         
-        def self.pull_variable(variable)
-            return RegressionModel.pull_variable(LinearMixedEffectsModel, variable)
+        def self.pull_priority
+            1
+        end
+        
+        def self.pull_variable(variable, type, klass)
+            model = Rust::RustDatatype.pull_variable(variable, Rust::S4Class)
+            
+            return LinearMixedEffectsModel.new(model)
+        end
+        
+        def summary
+            unless @summary
+                Rust.exclusive do
+                    Rust._eval("tmp.summary <- summary(#{self.r_mirror})")
+                    Rust._eval("mode(tmp.summary$objClass) <- \"list\"")
+                    Rust._eval("tmp.summary$logLik <- attributes(tmp.summary$logLik)")
+                    @summary = Rust["tmp.summary"]
+                end
+            end
+            
+            return @summary
         end
         
         def self.generate(dependent_variable, fixed_effects, random_effects, data, **options)
+            Rust.prerequisite("lmerTest")
+            Rust.prerequisite("rsq")
+            
             random_effects = random_effects.map { |effect| "(1|#{effect})" }
             
             RegressionModel.generate(
@@ -140,6 +166,20 @@ module Rust::Models::Regression
                 data, 
                 **options
             )
+        end
+        
+        def r_2
+        Rust.exclusive do
+                Rust._eval("tmp.rsq <- rsq(#{self.r_mirror}, adj=F)")
+                return Rust['tmp.rsq']
+            end
+        end
+        
+        def r_2_adjusted
+            Rust.exclusive do
+                Rust._eval("tmp.rsq <- rsq(#{self.r_mirror}, adj=T)")
+                return Rust['tmp.rsq']
+            end
         end
     end
 end

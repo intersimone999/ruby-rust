@@ -40,14 +40,13 @@ module Rust
         elsif value.is_a?(String) || value.is_a?(Numeric) || value.is_a?(Array) || value.is_a?(::Matrix)
             R_ENGINE.assign(variable, value)
         else
-            p value
             raise "Trying to assign #{variable} with #{value.class}; expected RustDatatype, String, Numeric, or Array"
         end
         
     end
     
-    def self.[](variable, type=RustDatatype)
-        return type.pull_variable(variable)
+    def self.[](variable)
+        return RustDatatype.pull_variable(variable)
     end
     
     def self._eval_big(r_command, return_warnings = false)
@@ -100,8 +99,10 @@ module Rust
             end
             
             if return_warnings
+                puts " Got #{warnings.size} warnings, with result #{result.inspect[0...100]}" if @@debugging
                 return result, warnings.lines.map { |w| w.strip.chomp }
             else
+                puts " Result: #{result.inspect[0...100]}" if @@debugging
                 return result
             end
         end
@@ -136,19 +137,42 @@ module Rust
     end
     
     class RustDatatype
-        def self.pull_variable(variable)
-            r_type = Rust._pull("typeof(#{variable})")
-            r_class = Rust._pull("class(#{variable})")
+        def self.pull_variable(variable, forced_interpreter = nil)
+            r_type = Rust._pull("as.character(typeof(#{variable}))")
+            r_class = Rust._pull("as.character(class(#{variable}))")
             
+            if forced_interpreter
+                raise ArgumentError, "Expected null or class as forced_interpreter" if forced_interpreter && !forced_interpreter.is_a?(Class)
+                raise ArgumentError, "Class #{forced_interpreter} can not handle type #{r_type}, class #{r_class}" unless forced_interpreter.can_pull?(r_type, r_class)
+                
+                return forced_interpreter.pull_variable(variable, r_type, r_class)
+            end
+            
+            candidates = []
             ObjectSpace.each_object(Class) do |type|
                 if type < RustDatatype
                     if type.can_pull?(r_type, r_class)
-                        return type.pull_variable(variable)
+                        candidates << type
                     end
                 end
             end
             
-            return Rust._pull(variable)
+            if candidates.size > 0
+                type = candidates.max_by { |c| c.pull_priority }
+                
+                puts "Using #{type} to pull #{variable}" if Rust.debug?
+                return type.pull_variable(variable, r_type, r_class)
+            else
+                if Rust._pull("length(#{variable})") == 0
+                    return []
+                else
+                    return Rust._pull(variable)
+                end
+            end
+        end
+        
+        def self.pull_priority
+            0
         end
         
         def load_in_r_as(variable_name)
@@ -167,7 +191,7 @@ module Rust
         def r_mirror
             varname = self.mirrored_R_variable_name
                         
-            if !Rust["exists(\"#{varname}\")"] || Rust["#{varname}.hash"] != self.r_hash
+            if !Rust._pull("exists(\"#{varname}\")") || Rust._pull("#{varname}.hash") != self.r_hash
                 puts "Loading #{varname}" if Rust.debug?
                 Rust[varname] = self
                 Rust["#{varname}.hash"] = self.r_hash
@@ -188,13 +212,68 @@ module Rust
         end
     end
     
+    class S4Class < RustDatatype
+        def self.can_pull?(type, klass)
+            return type == "S4"
+        end
+        
+        def self.pull_variable(variable, type, klass)
+            slots = [Rust._pull("names(getSlots(\"#{klass}\"))")].flatten
+            
+            return S4Class.new(variable, klass, slots)
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust._eval("#{variable_name} <- #{self.r_mirror}")
+        end
+        
+        def r_hash
+            "immutable"
+        end
+        
+        def initialize(variable_name, klass, slots)
+            @klass = klass
+            @slots = slots
+            
+            self.r_mirror_to(variable_name)
+        end
+        
+        def [](key)
+            raise ArgumentError, "Unknown slot `#{key}` for class `#@klass`" unless @slots.include?(key)
+            
+            Rust.exclusive do
+                return Rust["#{self.r_mirror}@#{key}"]
+            end
+        end
+        alias :| :[]
+        
+        def []=(key, value)
+            raise ArgumentError, "Unknown slot `#{key}` for class `#@klass`" unless @slots.include?(key)
+            
+            Rust.exclusive do
+                return Rust["#{self.r_mirror}@#{key}"] = value
+            end
+        end
+        
+        def slots
+            @slots
+        end
+        
+        def class_name
+            @klass
+        end
+        
+        def inspect
+            return "<S4 instance of #@klass, with slots #@slots>"
+        end
+    end
+    
     class List < RustDatatype
         def self.can_pull?(type, klass)
             return type == "list" && klass != "data.frame"
         end
         
-        def self.pull_variable(variable)
-            klass = Rust._pull("class(#{variable})")
+        def self.pull_variable(variable, type, klass)
             return List.new(klass) if Rust._pull("length(#{variable})") == 0
             
             names    = [Rust["names(#{variable})"]].flatten
@@ -241,7 +320,7 @@ module Rust
         def inspect
             result = ""
             values_inspected = @data.map { |k, v| [k, v.inspect.split("\n").map { |l| "  " + l }.join("\n")] }.to_h
-            max_length = [values_inspected.map { |k, v| v.split("\n").map { |line| line.length }.max }.max.to_i, 100].min
+            max_length = [values_inspected.map { |k, v| v.split("\n").map { |line| line.length }.max.to_i }.max.to_i, 100].min
             
             @data.keys.each do |i|
                 result << "-" * max_length + "\n"
@@ -272,7 +351,7 @@ module Rust
             return [klass].flatten.include?("data.frame")
         end
         
-        def self.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
             hash = {}
             colnames = Rust["colnames(#{variable})"]
             colnames.each do |col|
@@ -758,10 +837,18 @@ module Rust
             return klass.is_a?(Array) && klass.include?("matrix")
         end
         
-        def self.pull_variable(variable)
-            core = Rust._pull(variable)
-            row_names = Rust["rownames(#{variable})"]
-            column_names = Rust["colnames(#{variable})"]
+        def self.pull_variable(variable, type, klass)
+            if Rust._pull("length(#{variable})") == 1
+                core = ::Matrix[[Rust._pull("#{variable}[1]")]]
+            else
+                core = Rust._pull(variable)
+            end
+            row_names = [Rust["rownames(#{variable})"]].flatten
+            column_names = [Rust["colnames(#{variable})"]].flatten
+            
+            row_names = nil if row_names.all? { |v| v == nil }
+            column_names = nil if column_names.all? { |v| v == nil }
+            
             Matrix.new(core, row_names, column_names)
         end
         
@@ -787,8 +874,8 @@ module Rust
                 raise TypeError, "Expected array of array" unless @data.is_a?(Array) || @data[0].is_a?(Array)
                 raise TypeError, "Only numeric matrices are supported" unless self.flatten.all? { |e| e.is_a?(Numeric) }
                 raise "All the rows must have the same size" unless @data.map { |row| row.size }.uniq.size == 1
-                raise ArgumentError, "Expected row names to match the number of rows" if row_names && row_names.size != self.rows
-                raise ArgumentError, "Expected column names to match the number of columns" if @column_names && @column_names.size != self.cols
+                raise ArgumentError, "Expected row names #@row_names to match the number of rows in #{self.inspect}" if @row_names && @row_names.size != self.rows
+                raise ArgumentError, "Expected column names #@column_names to match the number of columns in #{self.inspect}" if @column_names && @column_names.size != self.cols
             end
         end
         
@@ -825,7 +912,7 @@ module Rust
                 [
                     colname, 
                     (
-                        [colname.length] + 
+                        [colname ? colname.length : 1] + 
                         @data.map {|r| r[column_names.index(colname)]}.map { |e| e.inspect.length }
                     ).max
                 ]
@@ -1013,7 +1100,7 @@ module Rust
             return klass == "formula" || (klass.is_a?(Array) && klass.include?("formula"))
         end
         
-        def self.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
             formula_elements = Rust._pull("as.character(#{variable})")
 
             assert("The number of elements of a formula must be 2 or 3: #{formula_elements} given") { formula_elements.size > 1 && formula_elements.size < 4 }
@@ -1059,7 +1146,7 @@ module Rust
             return klass == "factor"
         end
         
-        def self.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
             levels = Rust["levels(#{variable})"]
             values = Rust["as.integer(#{variable})"]
             
@@ -1187,8 +1274,13 @@ module Rust
             return klass == "call"
         end
         
-        def self.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
             return Call.new(Rust["deparse(#{variable})"])
+        end
+        
+        def load_in_r_as(variable_name)
+            Rust["call.str"] = @value
+            Rust._eval("#{variable_name} <- str2lang(call.str)")
         end
         
         def initialize(value)
@@ -1199,9 +1291,8 @@ module Rust
             @value
         end
         
-        def load_in_r_as(variable_name)
-            Rust["call.str"] = @value
-            Rust._eval("#{variable_name} <- str2lang(call.str)")
+        def inspect
+            @value
         end
     end
     
@@ -1210,12 +1301,24 @@ module Rust
             return type == "NULL" && klass == "NULL"
         end
         
-        def self.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
             return nil
+        end
+    end
+    
+    class Environment < RustDatatype
+        def self.can_pull?(type, klass)
+            return type == "environment" && klass == "environment"
+        end
+        
+        def self.pull_variable(variable, type, klass)
+            warn "Exchanging R environments is not supported!"
+            return Environment.new
         end
         
         def self.load_in_r_as(variable)
-            Rust._eval("#{variable} = NULL")
+            warn "Exchanging R environments is not supported!"
+            Rust._eval("#{variable} <- environment()")
         end
     end
 end
@@ -1241,6 +1344,10 @@ end
 class NilClass
     def to_R
         return "NULL"
+    end
+    
+    def load_in_r_as(variable)
+        Rust._eval("#{variable} <- NULL")
     end
 end
 

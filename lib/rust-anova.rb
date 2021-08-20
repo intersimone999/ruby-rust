@@ -6,8 +6,8 @@ module Rust
             return type == "list" && [klass].flatten.include?("aov")
         end
         
-        def self.pull_variable(variable)
-            model = Rust::List.pull_variable(variable)
+        def self.pull_variable(variable, type, klass)
+            model = RustDatatype.pull_variable(variable, Rust::List)
             
             return ANOVAModel.new(model)
         end
