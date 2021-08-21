@@ -1,6 +1,4 @@
-require 'code-assertions'
-
-require_relative 'rust-core'
+require_relative '../core'
 
 module Rust::Descriptive
     class << self

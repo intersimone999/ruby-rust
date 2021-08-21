@@ -1,6 +1,6 @@
-require_relative 'rust-core'
-require_relative 'rust-descriptive'
-require_relative 'rust-basics'
+require_relative '../core'
+require_relative '../stats/descriptive'
+require_relative '../stats/correlation'
 
 module Rust::Models
 end

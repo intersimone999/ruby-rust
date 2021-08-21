@@ -1,8 +1,6 @@
-require 'code-assertions'
+require_relative '../core'
 
-Rust.exclusive do
-    Rust._eval("library(effsize)")
-end
+Rust.prerequisite('effsize')
 
 module Rust::EffectSize
     class Result
@@ -16,11 +14,9 @@ module Rust::EffectSize
             return "#{name} = #{estimate} (#{magnitude}) [#{confidence_interval.min}, #{confidence_interval.max}]"
         end
     end
-end
 
-module Rust::EffectSize::CliffDelta
-    class << self
-        def compute(d1, d2)
+    class CliffDelta
+        def self.compute(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
@@ -45,11 +41,9 @@ module Rust::EffectSize::CliffDelta
             end
         end
     end
-end
-
-module Rust::EffectSize::CohenD
-    class << self
-        def compute(d1, d2)
+    
+    class CohenD
+        def self.compute(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             

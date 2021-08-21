@@ -1,4 +1,4 @@
-require_relative 'rust-core'
+require_relative '../core'
 
 class Numeric
     def distance(other)

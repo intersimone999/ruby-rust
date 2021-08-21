@@ -1,4 +1,5 @@
-require_relative 'rust-core'
+require_relative '../core'
+require 'csv'
 
 module Rust
     class CSV

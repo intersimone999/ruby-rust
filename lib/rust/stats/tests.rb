@@ -1,4 +1,4 @@
-require_relative 'rust-core'
+require_relative '../core'
 
 module Rust::StatisticalTests
     class Result
@@ -85,85 +85,9 @@ module Rust::StatisticalTests
             end
         end
     end
-end
 
-module Rust::StatisticalTests::PValueAdjustment
-    def self.method(name)
-        name = name.to_s
-        case name.downcase
-        when "bonferroni", "b"
-            return Bonferroni
-        when "holm", "h"
-            return Holm
-        when "hochberg"
-            return Hochberg
-        when "hommel"
-            return Hommel
-        when "benjaminihochberg", "bh"
-            return BenjaminiHochberg
-        when "benjaminiyekutieli", "by"
-            return BenjaminiYekutieli
-        end
-    end
-    
-    class Bonferroni
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"bonferroni\")")
-            end
-        end
-    end
-    
-    class Holm
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"holm\")")
-            end
-        end
-    end
-    
-    class Hochberg
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"hochberg\")")
-            end
-        end
-    end
-    
-    class Hommel
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"hommel\")")
-            end
-        end
-    end
-    
-    class BenjaminiHochberg
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"BH\")")
-            end
-        end
-    end
-    
-    class BenjaminiYekutieli
-        def self.adjust(*p_values)
-            Rust.exclusive do
-                Rust['adjustment.p'] = p_values
-                return Rust._pull("p.adjust(adjustment.p, method=\"BY\")")
-            end
-        end
-    end
-end
-
-module Rust::StatisticalTests::Wilcoxon
-    class << self
-         def paired(d1, d2, alpha = 0.05, **options)
+    class Wilcoxon
+         def self.paired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             raise "The two distributions have different size" if d1.size != d2.size
@@ -185,7 +109,7 @@ module Rust::StatisticalTests::Wilcoxon
             end
         end
         
-        def unpaired(d1, d2, alpha = 0.05, **options)
+        def self.unpaired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
@@ -206,11 +130,9 @@ module Rust::StatisticalTests::Wilcoxon
             end
         end
     end
-end
-    
-module Rust::StatisticalTests::T
-    class << self
-        def paired(d1, d2, alpha = 0.05, **options)
+
+    class T
+        def self.paired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             raise "The two distributions have different size" if d1.size != d2.size
@@ -232,7 +154,7 @@ module Rust::StatisticalTests::T
             end
         end
         
-        def unpaired(d1, d2, alpha = 0.05, **options)
+        def self.unpaired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             
@@ -253,11 +175,9 @@ module Rust::StatisticalTests::T
             end
         end
     end
-end
 
-module Rust::StatisticalTests::Shapiro
-    class << self
-        def compute(vector, alpha = 0.05, **options)
+    class Shapiro
+        def self.compute(vector, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !vector.is_a?(Array) || !vector.all? { |e| e.is_a?(Numeric) }
             Rust.exclusive do
                 Rust['shapiro.v'] = vector
@@ -272,6 +192,80 @@ module Rust::StatisticalTests::Shapiro
                 result.hypothesis = Rust::StatisticalTests::Hypothesis.find(options[:hypothesis])
                 
                 return result
+            end
+        end
+    end
+    
+    module PValueAdjustment
+        def self.method(name)
+            name = name.to_s
+            case name.downcase
+            when "bonferroni", "b"
+                return Bonferroni
+            when "holm", "h"
+                return Holm
+            when "hochberg"
+                return Hochberg
+            when "hommel"
+                return Hommel
+            when "benjaminihochberg", "bh"
+                return BenjaminiHochberg
+            when "benjaminiyekutieli", "by"
+                return BenjaminiYekutieli
+            end
+        end
+        
+        class Bonferroni
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"bonferroni\")")
+                end
+            end
+        end
+        
+        class Holm
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"holm\")")
+                end
+            end
+        end
+        
+        class Hochberg
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"hochberg\")")
+                end
+            end
+        end
+        
+        class Hommel
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"hommel\")")
+                end
+            end
+        end
+        
+        class BenjaminiHochberg
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"BH\")")
+                end
+            end
+        end
+        
+        class BenjaminiYekutieli
+            def self.adjust(*p_values)
+                Rust.exclusive do
+                    Rust['adjustment.p'] = p_values
+                    return Rust._pull("p.adjust(adjustment.p, method=\"BY\")")
+                end
             end
         end
     end

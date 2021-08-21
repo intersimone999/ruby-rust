@@ -1,4 +1,4 @@
-require_relative 'rust-core'
+require_relative '../core'
 
 module Rust::Correlation
     class Pearson
