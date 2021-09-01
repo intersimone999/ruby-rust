@@ -45,7 +45,7 @@ module Rust::Descriptive
             return data.sum
         end
         
-        def quantile(data, percentiles=[0.0, 0.25, 0.5, 0.75, 1.0])
+        def quantile(data, percentiles = [0.0, 0.25, 0.5, 0.75, 1.0])
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !percentiles.is_a?(Array) || !percentiles.all? { |e| e.is_a?(Numeric) }
             raise "Percentiles outside the range: #{percentiles}" if percentiles.any? { |e| !e.between?(0, 1) }
@@ -102,5 +102,27 @@ module Rust::Descriptive
             
             return outliers
         end
+    end
+end
+
+module Rust::RBindings
+    def mean(series)
+        Rust::Descriptive.mean(series)
+    end
+    
+    def median(series)
+        Rust::Descriptive.median(series)
+    end
+    
+    def var(series)
+        Rust::Descriptive.variance(series)
+    end
+    
+    def sd(series)
+        Rust::Descriptive.standard_deviation(series)
+    end
+    
+    def quantile(series, percentiles = [0.0, 0.25, 0.5, 0.75, 1.0])
+        Rust::Descriptive.quantile(series, percentiles)
     end
 end
