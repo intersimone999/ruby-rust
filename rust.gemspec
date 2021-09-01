@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'rust'
-  s.version     = '0.7'
-  s.date        = '2021-02-16'
+  s.version     = '0.8'
+  s.date        = '2021-09-01'
   s.summary     = "Ruby advanced statistical library"
   s.description = "Ruby advanced statistical library based on RinRuby"
   s.authors     = ["Simone Scalabrino"]
