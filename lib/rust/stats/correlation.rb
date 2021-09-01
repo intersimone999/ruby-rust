@@ -64,7 +64,7 @@ module Rust::Correlation
                 Rust['correlation.a'] = d1
                 Rust['correlation.b'] = d2
                 
-                _, warnings = Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='p')", true)
+                _, warnings = Rust._eval("correlation.result <- cor.test(correlation.a, correlation.b, method='k')", true)
                 
                 result = Result.new
                 result.name             = "Kendall's rank correlation tau"
