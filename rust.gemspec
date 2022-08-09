@@ -1,12 +1,13 @@
 Gem::Specification.new do |s|
   s.name        = 'rust'
-  s.version     = '0.8'
-  s.date        = '2021-09-01'
+  s.version     = '0.9'
+  s.date        = '2022-08-09'
   s.summary     = "Ruby advanced statistical library"
   s.description = "Ruby advanced statistical library based on RinRuby"
   s.authors     = ["Simone Scalabrino"]
   s.email       = 's.scalabrino9@gmail.com'
-  s.files       = Dir.glob("lib/**/*.rb")
+  s.files       = Dir.glob("lib/**/*.rb") + Dir.glob("bin/*")
+  s.executables = [ "ruby-rust" ]
   s.homepage    = 'https://github.com/intersimone999/ruby-rust'
   s.license     = "GPL-3.0-only"
   
