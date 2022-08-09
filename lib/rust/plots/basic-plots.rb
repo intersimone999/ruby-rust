@@ -6,7 +6,7 @@ module Rust::Plots
             super()
             @series = []
             if x && y
-                self.series(x, y, options)
+                self.series(x, y, **options)
             end
         end
         

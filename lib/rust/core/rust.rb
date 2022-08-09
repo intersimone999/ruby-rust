@@ -12,7 +12,7 @@ module Rust
     private_constant    :R_MUTEX
     private_constant    :CLIENT_MUTEX
     
-    @@debugging = false
+    @@debugging = $RUST_DEBUG || false
     @@in_client_mutex = false
     
     def self.debug
