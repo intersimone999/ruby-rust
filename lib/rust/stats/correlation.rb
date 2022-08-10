@@ -1,7 +1,18 @@
 require_relative '../core'
 
+##
+# Module containing all the correlation-related statistics.
+
 module Rust::Correlation
+    
+    ##
+    # Pearson correlation utility methods.
+    
     class Pearson
+        
+        ##
+        # Runs the Pearson correlation test between +d1+ and +d2+.
+        
         def self.test(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
@@ -23,12 +34,22 @@ module Rust::Correlation
             end
         end
         
+        ##
+        # Returns the Pearson correlation index between +d1+ and +d2+
+        
         def self.estimate(d1, d2)
             self.test(d1, d2).correlation
         end
     end
     
+    ##
+    # Spearman correlation utility methods.
+    
     class Spearman
+        
+        ##
+        # Runs the Spearman correlation test between +d1+ and +d2+.
+        
         def self.test(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
@@ -50,12 +71,22 @@ module Rust::Correlation
             end
         end
         
+        ##
+        # Returns the Spearman correlation index between +d1+ and +d2+
+        
         def self.estimate(d1, d2)
             self.test(d1, d2).correlation
         end
     end
     
+    ##
+    # Kendall correlation utility methods.
+    
     class Kendall
+        
+        ##
+        # Runs the Kendall correlation test between +d1+ and +d2+.
+        
         def self.test(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
@@ -77,10 +108,16 @@ module Rust::Correlation
             end
         end
         
+        ##
+        # Returns the Kendall correlation index between +d1+ and +d2+
+        
         def self.estimate(d1, d2)
             self.test(d1, d2).correlation
         end
     end
+    
+    ##
+    # Result of a correlation test.
     
     class Result
         attr_accessor   :name
@@ -96,9 +133,15 @@ module Rust::Correlation
             @exact = true
         end
         
+        ##
+        # Returns the statistic with the specified +name+.
+        
         def [](name)
             return @statistics[name.to_sym]
         end
+        
+        ##
+        # Sets the +value+ for the the statistic with the specified +name+.
         
         def []=(name, value)
             @statistics[name.to_sym] = value

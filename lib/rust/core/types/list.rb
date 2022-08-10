@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Mirror of the list type in R.
+    
     class List < RustDatatype
         def self.can_pull?(type, klass)
             return type == "list"
@@ -27,11 +31,17 @@ module Rust
             end
         end
         
+        ##
+        # Creates an empty list of a given class (+klass+) and the specified +names+.
+        
         def initialize(klass, names = [])
             @data = {}
             @names = names
             @klass = klass
         end
+        
+        ##
+        # Returns the elements for the name +key+.
         
         def [](key)
             key = get_key(key)
@@ -40,11 +50,17 @@ module Rust
         end
         alias :| :[]
         
+        ##
+        # Sets the +value+ for name +key+.
+        
         def []=(key, value)
             key = get_key(key)
             
             return @data[key] = value
         end
+        
+        ##
+        # Returns the names of the list.
         
         def names
             @names

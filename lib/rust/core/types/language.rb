@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Mirror of the formula type in R.
+    
     class Formula < RustDatatype
         def self.can_pull?(type, klass)
             return klass == "formula" || (klass.is_a?(Array) && klass.include?("formula"))
@@ -24,6 +28,9 @@ module Rust
         attr_reader     :left_part
         attr_reader     :right_part
         
+        ##
+        # Creates a new formula with a given +left_part+ (optional) and +right_part+ (as strings). 
+        
         def initialize(left_part, right_part)
             raise ArgumentError, "Expected string" if left_part && !left_part.is_a?(String)
             raise ArgumentError, "Expected string" if !right_part.is_a?(String)
@@ -46,7 +53,10 @@ module Rust
             return self.to_R.strip
         end
     end
-        
+    
+    ##
+    # Mirror of the call type in R.
+    
     class Call < RustDatatype
         def self.can_pull?(type, klass)
             return klass == "call"
@@ -61,6 +71,9 @@ module Rust
             Rust._eval("#{variable_name} <- str2lang(call.str)")
         end
         
+        ##
+        # Creates a new call with the given +value+ (String).
+        
         def initialize(value)
             @value = value
         end
@@ -73,6 +86,9 @@ module Rust
             @value
         end
     end
+    
+    ##
+    # Mirror of the environment type in R. Currently not supported.
     
     class Environment < RustDatatype
         def self.can_pull?(type, klass)
@@ -90,10 +106,17 @@ module Rust
         end
     end
     
+    ##
+    # Represents a function call in R. After having set up its name (constructor) and, optionally, its arguments
+    # and options, it can be used the call method to execute it in the R environment.
+    
     class Function
         attr_reader     :name
         attr_reader     :arguments
         attr_reader     :options
+        
+        ##
+        # Creates a new function with a given +name+.
         
         def initialize(name)
             @function = name
@@ -101,11 +124,17 @@ module Rust
             @options    = Options.new
         end
         
+        ##
+        # Sets the +options+ (Options type) of the function.
+        
         def options=(options)
             raise TypeError, "Expected Options" unless options.is_a?(Options)
             
             @options = options
         end
+        
+        ##
+        # Sets the +arguments+ (Arguments type) of the function.
         
         def arguments=(arguments)
             raise TypeError, "Expected Arguments" unless options.is_a?(Arguments)
@@ -118,23 +147,21 @@ module Rust
             return "#@function(#{params})"
         end
         
+        ##
+        # Calls the function in the R environment.
+        
         def call
             Rust._eval(self.to_R)
         end
     end
     
-    class SimpleFormula
-        def initialize(dependent, independent)
-            @dependent = dependent
-            @independent = independent
-        end
-        
-        def to_R
-            return "#@dependent ~ #@independent"
-        end
-    end
+    ##
+    # Represents an R variable.
     
     class Variable
+        ##
+        # Creates a variable with the given +name+.
+        
         def initialize(name)
             @name = name
         end
@@ -144,11 +171,17 @@ module Rust
         end
     end
     
+    ##
+    # Represents the arguments of a function in R. Works as an Array of objects.
+    
     class Arguments < Array
         def to_R
             return self.map { |v| v.to_R }.join(", ")
         end
     end
+    
+    ##
+    # Represents the options of a function in R. Works as a Hash associating option names to objects.
     
     class Options < Hash
         def to_R

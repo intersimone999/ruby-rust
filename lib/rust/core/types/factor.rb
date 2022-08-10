@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Mirror of the factor type in R.
+    
     class Factor < RustDatatype
         def self.can_pull?(type, klass)
             return klass == "factor"
@@ -20,10 +24,16 @@ module Rust
             Rust._eval("#{variable_name} <- factor(tmp.values, labels=tmp.levels)")
         end
         
+        ##
+        # Creates a new factor given an array of numeric +values+ and symbolic +levels+.
+        
         def initialize(values, levels)
             @levels = levels.map { |v| v.to_sym }
             @values = values
         end
+        
+        ##
+        # Returns the levels of the factor.
         
         def levels
             @levels
@@ -35,9 +45,16 @@ module Rust
             return @levels == other.levels && self.to_a == other.to_a
         end
         
+        ##
+        # Returns the value of the +i+-th element in the factor.
+        
         def [](i)
             FactorValue.new(@values[i], @levels[@values[i] - 1])
         end
+        
+        ##
+        # Sets the +value+ of the +i+-th element in the factor. If it is an Integer, the +value+ must be between 1 and 
+        # the number of levels of the factor. +value+ can be either a FactorValue or a String/Symbol.
         
         def []=(i, value)
             raise "The given value is outside the factor bounds" if value.is_a?(Integer) && (value < 1 || value > @levels.size)
@@ -56,6 +73,9 @@ module Rust
             
             @values[i] = value
         end
+        
+        ##
+        # Returns an array of FactorValue for the values in this factor.
         
         def to_a
             @values.map { |v| FactorValue.new(v, @levels[v - 1]) }
@@ -76,7 +96,14 @@ module Rust
         end
     end
     
+    ##
+    # Represents a single value in a factor.
+    
     class FactorValue
+        
+        ##
+        # Creates a factor with a given +value+ (numeric) and +level+ (symbolic).
+        
         def initialize(value, level)
             @value = value
             @level = level

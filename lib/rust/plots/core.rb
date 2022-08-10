@@ -1,12 +1,26 @@
 require_relative '../core'
 
+##
+# Module that contains classes for plotting.
+
 module Rust::Plots
+    
+    ##
+    # Represents a generic plot in R.
+    
     class BasePlot
+        
+        ##
+        # Creates a new base plot object.
+        
         def initialize
             @renderables = []
             @options = Rust::Options.new
             @override_options = true
         end
+        
+        ##
+        # Sets the x-axis label.
         
         def x_label(label)
             @options['xlab'] = label
@@ -14,11 +28,17 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Sets the y-axis label.
+        
         def y_label(label)
             @options['ylab'] = label
             
             return self
         end
+        
+        ##
+        # Returns a color palette of the given +size+.
         
         def palette(size)
             if size <= 1
@@ -28,17 +48,28 @@ module Rust::Plots
             end
         end
         
+        ##
+        # Sets the limits for the x-axis.
+        
         def x_range(range)
             @options['xlim'] = range
             
             return self
         end
+        alias :xlim :x_range
+        
+        ##
+        # Sets the limits for the y-axis.
         
         def y_range(range)
             @options['ylim'] = range
             
             return self
         end
+        alias :ylim :y_range
+        
+        ##
+        # Adds an +axis+ to show instead of the default ones.
         
         def axis(axis)
             @options['xaxt'] = 'n'
@@ -49,17 +80,26 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Shows the given +grid+.
+        
         def grid(grid)
             self._add_renderable(grid)
             
             return self
         end
         
+        ##
+        # Sets the +title+ of the plot.
+        
         def title(title)
             @options['main'] = title
             
             return self
         end
+        
+        ##
+        # Sets the +color+ of the plot.
         
         def color(color)
             @options['col'] = color
@@ -74,6 +114,9 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Sets any R +option+ with the given +value+.
+        
         def []=(option, value)
             @options[option.to_s] = value
         end
@@ -81,6 +124,9 @@ module Rust::Plots
         def _do_not_override_options!
             @override_options = false
         end
+        
+        ##
+        # Shows the plot in a window.
         
         def show()
             Rust.exclusive do
@@ -90,6 +136,9 @@ module Rust::Plots
             
             return self
         end
+        
+        ##
+        # Prints the plot on a PDF file at path. +options+ can be specified for the PDF (e.g., width and height).
         
         def pdf(path, **options)
             pdf_function = Rust::Function.new("pdf")
@@ -133,10 +182,20 @@ module Rust::Plots
         end
     end
     
+    ##
+    # Represents any element that can be rendered in a plot (e.g., axes or grids).
+    
     class Renderable
+        
+        ##
+        # Creates a new empty renderable object.
+        
         def initialize
             @options = Rust::Options.new
         end
+        
+        ##
+        # Sets an option for the renderable object.
         
         def []=(option, value)
             @options[option] = value
@@ -150,11 +209,17 @@ module Rust::Plots
         end
     end
     
+    ##
+    # Represents an axis for a plot.
+    
     class Axis < Renderable
         BELOW = 1
         LEFT  = 2
         ABOVE = 3
         RIGHT = 4
+        
+        ##
+        # Creates a new axis at the given +side+ (constants BELOW, LEFT, ABOVE, and RIGHT are available).
         
         def initialize(side)
             super()
@@ -198,7 +263,14 @@ module Rust::Plots
         end
     end
     
+    ##
+    # Represents a grid for a plot.
+    
     class Grid < Renderable
+        
+        ##
+        # Creates a new grid
+        
         def initialize
             super()
             
@@ -206,11 +278,17 @@ module Rust::Plots
             @y = Float::NAN
         end
         
+        ##
+        # Sets the x intervals.
+        
         def x(value)
             @x = value
             
             return self
         end
+        
+        ##
+        # Sets the y intervals.
         
         def y(value)
             @y = value
@@ -218,11 +296,17 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Automatically sets the x intervals.
+        
         def auto_x
             @x = nil
             
             return self
         end
+        
+        ##
+        # Automatically sets the y intervals.
         
         def auto_y
             @y = nil
@@ -230,11 +314,17 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Hides x axis lines.
+        
         def hide_x
             @x = Float::NAN
             
             return self
         end
+        
+        ##
+        # Hides y axis lines.
         
         def hide_y
             @y = Float::NAN

@@ -1,6 +1,13 @@
 require_relative '../core'
 
+##
+# Module with utilities for running statistical hypothesis tests.
+
 module Rust::StatisticalTests
+    
+    ##
+    # Represents the result of a statistical hypothesis test.
+    
     class Result
         attr_accessor   :name
         attr_accessor   :statistics
@@ -21,15 +28,27 @@ module Rust::StatisticalTests
             @statistics[name.to_sym] = value
         end
         
+        ##
+        # If a hypothesis is available, returns the adjusted p-value with respect to all the other results obtained for
+        # the same hypothesis. Otherwise, simply returns the p-value for this result.
+        # The +method+ for adjustment can be optionally specified (Bonferroni, by default).
+        
         def adjusted_pvalue(method='bonferroni')
-            return 1 unless @hypothesis
+            return @pvalue unless @hypothesis
             @hypothesis.adjusted_pvalue_for(self, method)
         end
+        
+        ##
+        # Sets the underlying hypothesis for the test. The p-values of the results belonging to the same hypothesis can
+        # be adjusted through the adjusted_pvalue method.
         
         def hypothesis=(value)
             @hypothesis = value
             @hypothesis.add(self)
         end
+        
+        ##
+        # Returns true if the results are significant according to the specified alpha.
         
         def significant
             pvalue < alpha
@@ -43,7 +62,13 @@ module Rust::StatisticalTests
         end
     end
     
-    class Hypothesis        
+    ##
+    # Represents a hypothesis behind one or more results.
+    
+    class Hypothesis
+        ##
+        # Returns the hypothesis with the given +title_or_instance+ as title (if String).
+        
         def self.find(title_or_instance)
             return Hypothesis.new(nil) if title_or_instance == nil
             
@@ -63,18 +88,28 @@ module Rust::StatisticalTests
         attr_reader :results
         attr_reader :title
         
+        ##
+        # Creates a new hypothesis with a given +title+.
+        
         def initialize(title)
             @title = title
             @results = []
         end
         
+        ##
+        # Registers a +result+ for this hypothesis.
+        
         def add(result)            
             @results << result
         end
         
-        def adjusted_pvalue_for(instance, method)
+        ##
+        # Returns the adjusted p-value for a specific +result+ with respect to all the other results obtained under this
+        # same hypothesis, using the specified +method+.
+        
+        def adjusted_pvalue_for(result, method)
             p_values = @results.map { |r| r.pvalue }
-            index = @results.index(instance)
+            index = @results.index(result)
             
             adjusted_pvalues = Rust::StatisticalTests::PValueAdjustment.method(method).adjust(*p_values)
             
@@ -85,9 +120,17 @@ module Rust::StatisticalTests
             end
         end
     end
+    
+    ##
+    # Class with utilities for running Wilcoxon Signed-Rank test and Ranked-Sum test (a.k.a. Mann-Whitney U test).
 
     class Wilcoxon
-         def self.paired(d1, d2, alpha = 0.05, **options)
+        
+        ##
+        # Runs a Wilxoson Signed-Rank test for +d1+ and +d2+, with a given +alpha+ (0.05, by default). 
+        # +options+ can be specified and directly passed to the R function.
+        
+        def self.paired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
             raise "The two distributions have different size" if d1.size != d2.size
@@ -108,6 +151,10 @@ module Rust::StatisticalTests
                 return result
             end
         end
+        
+        ##
+        # Runs a Wilxoson Ranked-Sum (a.k.a. Mann-Whitney U) test for +d1+ and +d2+, with a given +alpha+ (0.05, by default). 
+        # +options+ can be specified and directly passed to the R function.
         
         def self.unpaired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
@@ -131,7 +178,15 @@ module Rust::StatisticalTests
         end
     end
 
+    ##
+    # Class with utilities for running the T test.
+    
     class T
+        
+        ##
+        # Runs a paired T test for +d1+ and +d2+, with a given +alpha+ (0.05, by default). 
+        # +options+ can be specified and directly passed to the R function.
+        
         def self.paired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
@@ -153,6 +208,10 @@ module Rust::StatisticalTests
                 return result
             end
         end
+        
+        ##
+        # Runs an unpaired T test for +d1+ and +d2+, with a given +alpha+ (0.05, by default). 
+        # +options+ can be specified and directly passed to the R function.
         
         def self.unpaired(d1, d2, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
@@ -176,7 +235,15 @@ module Rust::StatisticalTests
         end
     end
 
+    ##
+    # Utilities for the Shapiro normality test.
+    
     class Shapiro
+        
+        ##
+        # Runs the Shapiro normality test for +vector+ and a given +alpha+ (0.05, by default).
+        # +options+ can be specified and directly passed to the R function.
+        
         def self.compute(vector, alpha = 0.05, **options)
             raise TypeError, "Expecting Array of numerics" if !vector.is_a?(Array) || !vector.all? { |e| e.is_a?(Numeric) }
             Rust.exclusive do
@@ -196,7 +263,14 @@ module Rust::StatisticalTests
         end
     end
     
+    ##
+    # Module with utilities for adjusting the p-values.
+    
     module PValueAdjustment
+        
+        ##
+        # Returns the Ruby class given the R name of the p-value adjustment method.
+        
         def self.method(name)
             name = name.to_s
             case name.downcase
@@ -215,6 +289,9 @@ module Rust::StatisticalTests
             end
         end
         
+        ##
+        # Bonferroni p-value adjustment method.
+        
         class Bonferroni
             def self.adjust(*p_values)
                 Rust.exclusive do
@@ -223,6 +300,9 @@ module Rust::StatisticalTests
                 end
             end
         end
+        
+        ##
+        # Holm p-value adjustment method.
         
         class Holm
             def self.adjust(*p_values)
@@ -233,6 +313,9 @@ module Rust::StatisticalTests
             end
         end
         
+        ##
+        # Hochberg p-value adjustment method.
+        
         class Hochberg
             def self.adjust(*p_values)
                 Rust.exclusive do
@@ -241,6 +324,9 @@ module Rust::StatisticalTests
                 end
             end
         end
+        
+        ##
+        # Hommel p-value adjustment method.
         
         class Hommel
             def self.adjust(*p_values)
@@ -251,6 +337,9 @@ module Rust::StatisticalTests
             end
         end
         
+        ##
+        # Benjamini-Hochberg p-value adjustment method.
+        
         class BenjaminiHochberg
             def self.adjust(*p_values)
                 Rust.exclusive do
@@ -259,6 +348,9 @@ module Rust::StatisticalTests
                 end
             end
         end
+        
+        ##
+        # Benjamini-Yekutieli p-value adjustment method.
         
         class BenjaminiYekutieli
             def self.adjust(*p_values)

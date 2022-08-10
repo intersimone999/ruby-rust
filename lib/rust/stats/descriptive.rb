@@ -1,12 +1,22 @@
 require_relative '../core'
 
+##
+# Module containing utilities for descriptive statistics.
+
 module Rust::Descriptive
     class << self
+        
+        ##
+        # Computes the arithmetic mean of the given +data+.
+        
         def mean(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             
             return data.sum.to_f / data.size
         end
+        
+        ##
+        # Computes the standard deviation of the given +data+.
         
         def standard_deviation(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
@@ -16,6 +26,9 @@ module Rust::Descriptive
         alias :sd     :standard_deviation
         alias :stddev :standard_deviation
         
+        ##
+        # Computes the variance of the given +data+.
+        
         def variance(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             return Float::NAN if data.size < 2
@@ -24,6 +37,9 @@ module Rust::Descriptive
             return data.map { |v| (v - mean) ** 2 }.sum.to_f / (data.size - 1)
         end
         alias :var     :variance
+        
+        ##
+        # Computes the median of the given +data+.
         
         def median(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
@@ -39,11 +55,17 @@ module Rust::Descriptive
             end
         end
         
+        ##
+        # Sums the given +data+.
+        
         def sum(data)
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
             
             return data.sum
         end
+        
+        ##
+        # Returns the quantiles of the given +data+, given the +percentiles+ (optional).
         
         def quantile(data, percentiles = [0.0, 0.25, 0.5, 0.75, 1.0])
             raise TypeError, "Expecting Array of numerics" if !data.is_a?(Array) || !data.all? { |e| e.is_a?(Numeric) }
@@ -77,9 +99,16 @@ module Rust::Descriptive
             return percentiles.zip(result).to_h
         end
         
+        ##
+        # Returns the outliers in +data+ using Tukey's fences, with a given +k+.
+        
         def outliers(data, k=1.5, **opts)
             outliers_according_to(data, data, k, **opts)
         end
+        
+        ##
+        # Returns the outliers in +data+ using Tukey's fences, with a given +k+, with respect to different data
+        # distribution (+data_distribution+).
         
         def outliers_according_to(data, data_distribution, k=1.5, **opts)
             quantiles = Rust::Descriptive.quantile(data_distribution, [0.25, 0.75])

@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Represents a sequence of values in R (through a call to the seq function).
+    
     class Sequence < RustDatatype
         attr_reader :min
         attr_reader :max
@@ -9,15 +13,24 @@ module Rust
             return false
         end
         
+        ##
+        # Creates a new sequence from +min+ to +max+ with a given +step+ (default = 1).
+        
         def initialize(min, max, step=1)
             @min = min
             @max = max
             @step = step
         end
         
-        def step(step)
+        ##
+        # Sets the step to +step+.
+        
+        def step=(step)
             @step = step
+            
+            return self
         end
+        alias :step :step=
         
         def each
             (@min..@max).step(@step) do |v|

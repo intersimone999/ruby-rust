@@ -5,7 +5,14 @@ require_relative '../stats/correlation'
 module Rust::Models
 end
 
+##
+# Contains classes that allow to run regression models.
+
 module Rust::Models::Regression
+    
+    ##
+    # Generic regression model in R.
+    
     class RegressionModel < Rust::RustDatatype
         def self.can_pull?(type, klass)
             # Can only pull specific sub-types
@@ -16,6 +23,11 @@ module Rust::Models::Regression
             @model.load_in_r_as(variable_name)
         end
 
+        ##
+        # Generates a new regression model. +object_type+ is the Ruby class of the model object; +model_type+ represents 
+        # the type of model at hand; +dependent_variable+ and +independent_variables+ are directly used as part of the 
+        # model formula. +data+ represents the dataset to be used. +options+ can be specified and directly passed to the
+        # model.
         
         def self.generate(object_type, model_type, dependent_variable, independent_variables, data, **options)
             mapped = ""
@@ -36,6 +48,9 @@ module Rust::Models::Regression
                 return result
             end
         end
+        
+        ##
+        # Creates a new +model+.
             
         def initialize(model)
             raise StandardError if model.is_a?(RegressionModel)
@@ -46,6 +61,9 @@ module Rust::Models::Regression
             @model
         end
         
+        ##
+        # Returns the residuals of the model.
+        
         def residuals
             Rust.exclusive do
                 @residuals = Rust["residuals(#{self.r_mirror})"] unless @residuals
@@ -53,6 +71,9 @@ module Rust::Models::Regression
             
             return @residuals
         end
+        
+        ##
+        # Returns the fitted values of the model.
         
         def fitted
             Rust.exclusive do
@@ -62,21 +83,36 @@ module Rust::Models::Regression
             return @fitted
         end
         
+        ##
+        # Returns the actual values in the dataset.
+        
         def actuals            
             return self.fitted.zip(self.residuals).map { |couple| couple.sum }
         end
+        
+        ##
+        # Returns the r-squared of the model.
         
         def r_2
             return self.summary|"r.squared"
         end
         
+        ##
+        # Returns the adjusted r-squared of the model.
+        
         def r_2_adjusted
             return self.summary|"adj.r.squared"
         end
         
+        ##
+        # Returns the mean squared error of the model.
+        
         def mse
             Rust::Descriptive.variance(self.residuals)
         end
+        
+        ##
+        # Returns the coefficients of the model.
         
         def coefficients
             a = self.summary|"coefficients"
@@ -85,6 +121,9 @@ module Rust::Models::Regression
         def method_missing(name, *args)
             return model|name.to_s
         end
+        
+        ##
+        # Returns a summary for the model using the summary function in R.
         
         def summary
             unless @summary
@@ -101,6 +140,9 @@ module Rust::Models::Regression
         end
     end
     
+    ##
+    # Represents a linear regression model in R.
+    
     class LinearRegressionModel < RegressionModel
         def self.can_pull?(type, klass)
             return type == "list" && klass == "lm"
@@ -111,6 +153,10 @@ module Rust::Models::Regression
             
             return LinearRegressionModel.new(model)
         end
+        
+        ##
+        # Generates a linear regression model, given its +dependent_variable+ and +independent_variables+ and its +data+. 
+        # +options+ can be specified and directly passed to the model. 
         
         def self.generate(dependent_variable, independent_variables, data, **options)
             RegressionModel.generate(
@@ -123,6 +169,9 @@ module Rust::Models::Regression
             )
         end
     end
+    
+    ##
+    # Represents a linear mixed effects model in R.
     
     class LinearMixedEffectsModel < RegressionModel
         def self.can_pull?(type, klass)
@@ -152,6 +201,10 @@ module Rust::Models::Regression
             return @summary
         end
         
+        ##
+        # Generates a linear mixed effects model, given its +dependent_variable+ and +independent_variables+ and its +data+. 
+        # +options+ can be specified and directly passed to the model. 
+        
         def self.generate(dependent_variable, fixed_effects, random_effects, data, **options)
             Rust.prerequisite("lmerTest")
             Rust.prerequisite("rsq")
@@ -169,7 +222,7 @@ module Rust::Models::Regression
         end
         
         def r_2
-        Rust.exclusive do
+            Rust.exclusive do
                 Rust._eval("tmp.rsq <- rsq(#{self.r_mirror}, adj=F)")
                 return Rust['tmp.rsq']
             end

@@ -1,6 +1,10 @@
 require_relative '../core'
 
 module Rust
+    
+    ##
+    # Mirror for an ANOVA model type in R. To create a new ANOVA model (aov), call the #generate method.
+    
     class ANOVAModel < RustDatatype
         def self.can_pull?(type, klass)
             return type == "list" && [klass].flatten.include?("aov")
@@ -15,6 +19,10 @@ module Rust
         def load_in_r_as(variable_name)
             @model.load_in_r_as(variable_name)
         end
+        
+        ##
+        # Generates a new ANOVA model with a given +formula+, +data+. +options+ can be specified and directly passed
+        # to the aov function in R.
         
         def self.generate(formula, data, **options)
             mapped = ""
@@ -32,13 +40,22 @@ module Rust
             end
         end
         
+        ##
+        # Creates a new +model+.
+        
         def initialize(model)
             @model = model
         end
         
+        ##
+        # Returns the model.
+        
         def model
             @model
         end
+        
+        ##
+        # Returns a summary of the ANOVA model through the summary function in R.
         
         def summary
             unless @summary

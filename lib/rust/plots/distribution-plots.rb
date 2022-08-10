@@ -1,11 +1,18 @@
 require_relative 'core'
 
 module Rust::Plots
+    
+    ##
+    # Represents any distribution-related plot (e.g., boxplots).
+    
     class DistributionPlot < BasePlot
         def initialize
             super()
             @series = []
         end
+        
+        ##
+        # Adds a series of data points. +options+ can be specified and directly passed to the R plotting function.
         
         def series(data, **options)
             @series << [data, options]
@@ -13,6 +20,9 @@ module Rust::Plots
             return self
         end
     end
+    
+    ##
+    # Represents a density plot in R.
     
     class DensityPlot < DistributionPlot
         protected
@@ -37,6 +47,9 @@ module Rust::Plots
             return self
         end
     end
+    
+    ##
+    # Represents a boxplot in R.
     
     class BoxPlot < DistributionPlot
         protected

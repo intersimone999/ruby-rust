@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Mirror of the matrix type in R.
+    
     class Matrix < RustDatatype
         def self.can_pull?(type, klass)
             return klass.is_a?(Array) && klass.include?("matrix")
@@ -27,6 +31,10 @@ module Rust
             Rust[variable_name] = matrix
         end
         
+        ##
+        # Creates a new matrix with the given +data+ (Ruby Matrix). Optionally, +row_names+ and +column_names+ can 
+        # be specified.
+        
         def initialize(data, row_names = nil, column_names = nil)
             @data = data.clone
             
@@ -48,28 +56,43 @@ module Rust
             end
         end
         
+        ##
+        # Returns the matrix element at row +i+ and column +j+.
+        
         def [](i, j)
             i, j = indices(i, j)
             
             return @data[i][j]
         end
         
-        def rows
-            @data.size
-        end
-        
-        def cols
-            @data[0].size
-        end
-        
-        def flatten
-            return @data.flatten
-        end
+        ##
+        # Sets the matrix element at row +i+ and column +j+ with +value+.
         
         def []=(i, j, value)
             i, j = indices(i, j)
             
             @data[i][j] = value
+        end
+        
+        ##
+        # Returns the number of rows.
+        
+        def rows
+            @data.size
+        end
+        
+        ##
+        # Returns the number of columns.
+        
+        def cols
+            @data[0].size
+        end
+        
+        ##
+        # Returns a flattened version of the matrix (Array).
+        
+        def flatten
+            return @data.flatten
         end
         
         def inspect

@@ -1,6 +1,10 @@
 require_relative 'datatype'
 
 module Rust
+    
+    ##
+    # Mirror of the data-frame type in R.
+    
     class DataFrame < RustDatatype
         def self.can_pull?(type, klass)
             return [klass].flatten.include?("data.frame")
@@ -19,6 +23,12 @@ module Rust
             return DataFrame.new(hash)
         end
         
+        ##
+        # Creates a new data-frame.
+        # +labels_or_data+ can be either:
+        # - an Array of column names (creates an empty data-frame)
+        # - a Hash with column names as keys and values as values
+        
         def initialize(labels_or_data)
             @data = {}
             
@@ -34,6 +44,9 @@ module Rust
             end
         end
         
+        ##
+        # Returns the +i+-th row of the data-frame
+        
         def row(i)
             if i < 0 || i >= self.rows
                 return nil
@@ -42,6 +55,9 @@ module Rust
             end
         end
         
+        ##
+        # Returns the +i+-th row of the data-frame. Faster (but harder to interpret) alternative to #row.
+        
         def fast_row(i)
             if i < 0 || i >= self.rows
                 return nil
@@ -49,6 +65,9 @@ module Rust
                 return @labels.map { |label| @data[label][i] }
             end
         end
+        
+        ##
+        # Shuffles the rows in the data-frame. The arguments are passed to the Array#shuffle method.
         
         def shuffle(*args)
             result = DataFrame.new(@labels)
@@ -63,6 +82,10 @@ module Rust
             
             return result
         end
+        
+        ##
+        # Returns a copy of the data-frame containing only the specified +rows+ and/or +cols+. If +rows+ and/or +cols+
+        # are nil, all the rows/columns are returned.
         
         def [](rows, cols=nil)
             raise "You must specify either rows or columns to select" if !rows && !cols
@@ -79,10 +102,16 @@ module Rust
             return result
         end
         
+        ##
+        # Return the column named +name+.
+        
         def column(name)
             return @data[name]
         end
         alias :| :column
+        
+        ##
+        # Renames the column named +old_name+ in +new_name+.
         
         def rename_column!(old_name, new_name)
             raise "This DataFrame does not contain a column named #{old_name}" unless @labels.include?(old_name)
@@ -92,9 +121,23 @@ module Rust
             @labels[@labels.index(old_name)] = new_name
         end
         
+        ##
+        # Functionally transforms the column named +column+ by applying the function given as a block.
+        # Example:
+        # df = Rust::DataFrame.new({a: [1,2,3], b: [3,4,5]})
+        # df.transform_column!("a") { |v| v + 1 }
+        # df|"a" # => [2, 3, 4]
+        
         def transform_column!(column)
             @data[column].map! { |e| yield e }
         end
+        
+        ##
+        # Returns a copy data-frame with only the rows for which the function given in the block returns true.
+        # Example:
+        # df = Rust::DataFrame.new({a: [1,2,3], b: ['a','b','c']})
+        # df2 = df.select_rows { |r| r['a'].even? }
+        # df2|"b" # => ['b']
         
         def select_rows
             result = DataFrame.new(self.column_names)
@@ -104,12 +147,19 @@ module Rust
             return result
         end
         
+        ##
+        # Returns true if the function given in the block returns true for any of the rows in this data-frame.
+        
         def has_row?
             self.each_with_index do |row, i|
                 return true if yield row, i
             end
             return false
         end
+        
+        ##
+        # Returns a copy of the data-frame with only the columns in +cols+. As an alternative, a block can be used 
+        # (only the columns for which the function returns true are kept).
         
         def select_columns(cols=nil)
             raise "You must specify either the columns you want to select or a selection block" if !cols && !block_given?
@@ -126,10 +176,16 @@ module Rust
         end
         alias :select_cols :select_columns
         
+        ##
+        # Deletes the column named +column+.
+        
         def delete_column(column)
             @labels.delete(column)
             @data.delete(column)
         end
+        
+        ##
+        # Deletes the +i+-th row.
         
         def delete_row(i)
             @data.each do |label, column|
@@ -137,11 +193,17 @@ module Rust
             end
         end
         
+        ##
+        # Returns a data-frame in which the rows are unique in terms of all the given columns named +by+.
+        
         def uniq_by(by)
             result = self.clone
             result.uniq_by!(by)
             return result
         end
+        
+        ##
+        # Makes sure that in this data-frame the rows are unique in terms of all the given columns named +by+.
         
         def uniq_by!(by)
             my_keys = {}
@@ -165,18 +227,32 @@ module Rust
             return self
         end
         
+        ##
+        # Return the names of the columns.
+        
         def column_names
             return @labels.map { |k| k.to_s }
         end
         alias :colnames :column_names
         
+        ##
+        # Returns the number of rows.
+        
         def rows
             @data.values[0].size
         end
         
+        ##
+        # Returns the number of columns
+        
         def columns
             @labels.size
         end
+        
+        ##
+        # Adds the given +row+ to the data-frame. +row+ can be either:
+        # - An Array of values for all the columns (in the order of #column_names);
+        # - A Hash containing associations between column names and value to be set.
         
         def add_row(row)
             if row.is_a?(Array)
@@ -201,6 +277,11 @@ module Rust
         end
         alias :<< :add_row
         
+        ##
+        # Adds a column named +name+ with the given +values+ (array). The size of +values+ must match the number of
+        # rows of this data-frame. As an alternative, it can be passed a block which returns, for a given row, the
+        # value to assign for the new column.
+        
         def add_column(name, values=nil)
             raise "Column already exists" if @labels.include?(name)
             raise "Values or block required" if !values && !block_given?
@@ -217,6 +298,9 @@ module Rust
             end
         end
         
+        ##
+        # Yields each row as a Hash containing column names as keys and values as values.
+        
         def each
             self.each_with_index do |element, i|
                 yield element
@@ -225,6 +309,10 @@ module Rust
             return self
         end
         
+        ##
+        # Yields each row as a Hash containing column names as keys and values as values. Faster alternative to
+        # #each.
+        
         def fast_each
             self.fast_each_with_index do |element, i|
                 yield element
@@ -232,6 +320,9 @@ module Rust
             
             return self
         end
+        
+        ##
+        # Yields each row as a Hash containing column names as keys and values as values and the row index.
         
         def each_with_index
             for i in 0...self.rows
@@ -245,6 +336,10 @@ module Rust
             
             return self
         end
+        
+        ##
+        # Yields each row as a Hash containing column names as keys and values as values and the row index. Faster 
+        # alternative to #each_with_index.
         
         def fast_each_with_index
             for i in 0...self.rows
@@ -302,6 +397,9 @@ module Rust
             return result
         end
         
+        ##
+        # Returns a copy of the data-frame containing only the first +n+ rows.
+        
         def head(n=10)
             result = DataFrame.new(self.column_names)
             self.each_with_index do |row, i|
@@ -309,6 +407,11 @@ module Rust
             end
             return result
         end
+        
+        ##
+        # Merges this data-frame with +other+ in terms of the +by+ column(s) (Array or String).
+        # +first_alias+ and +second_alias+ allow to specify the prefix that should be used for the columns not in +by+
+        # for this and the +other+ data-frame, respectively.
         
         def merge(other, by, first_alias = "x", second_alias = "y")
             raise TypeError, "Expected Rust::DataFrame" unless other.is_a?(DataFrame)
@@ -376,6 +479,14 @@ module Rust
             return result
         end
         
+        ##
+        # Aggregate the value in groups depending on the +by+ column (String). 
+        # A block must be passed to specify how to aggregate the columns. Aggregators for specific columns can be
+        # specified as optional arguments in which the name of the argument represents the column name and the value 
+        # contains a block for aggregating the specific column.
+        # Both the default and the specialized blocks must take as argument an array of values and must return a 
+        # scalar value.
+        
         def aggregate(by, **aggregators)
             raise TypeError, "Expected a string" unless by.is_a?(String)
             raise TypeError, "All the aggregators should be procs" unless aggregators.values.all? { |v| v.is_a?(Proc) }
@@ -416,11 +527,17 @@ module Rust
             return result
         end
         
+        ##
+        # Returns a copy of this data-frame in which the rows are sorted by the values of the +by+ column.
+        
         def sort_by(column)
             result = self.clone
             result.sort_by!(column)
             return result
         end
+        
+        ##
+        # Sorts the rows of this data-frame by the values of the +by+ column.
         
         def sort_by!(by)
             copy = @data[by].clone
@@ -447,6 +564,9 @@ module Rust
             @data[by].sort!
         end
         
+        ##
+        # Adds all the rows in +dataframe+ to this data-frame. The column names must match.
+        
         def bind_rows!(dataframe)
             raise TypeError, "DataFrame expected" unless dataframe.is_a?(DataFrame)
             raise "The columns are not compatible: #{self.column_names - dataframe.column_names} - #{dataframe.column_names - self.column_names}" unless (self.column_names & dataframe.column_names).size == self.columns
@@ -458,6 +578,9 @@ module Rust
             return true
         end
         alias :rbind! :bind_rows!
+        
+        ##
+        # Adds all the columns in +dataframe+ to this data-frame. The number of rows must match.
         
         def bind_columns!(dataframe)
             raise TypeError, "DataFrame expected" unless dataframe.is_a?(DataFrame)
@@ -472,12 +595,18 @@ module Rust
         end
         alias :cbind! :bind_columns!
         
+        ##
+        # Returns a copy of this dataframe and adds all the rows in +dataframe+ to it. The column names must match.
+        
         def bind_rows(dataframe)
             result = self.clone
             result.bind_rows!(dataframe)
             return result
         end
         alias :rbind :bind_rows
+        
+        ##
+        # Returns a copy of this dataframe and adds all the columns in +dataframe+ to it. The number of rows must match.
         
         def bind_columns(dataframe)
             result = self.clone
@@ -486,12 +615,22 @@ module Rust
         end
         alias :cbind :bind_columns
         
+        ##
+        # Returns a copy of this data-frame.
+        
         def clone
             DataFrame.new(@data)
         end
     end
     
+    ##
+    # Represents an array of DataFrame
+    
     class DataFrameArray < Array
+        
+        ##
+        # Returns a data-frame with the rows in all the data-frames together (if compatible).
+        
         def bind_all
             return nil if self.size == 0
             
@@ -505,7 +644,14 @@ module Rust
         end
     end
     
+    ##
+    # Represents a hash of DataFrame
+    
     class DataFrameHash < Hash
+        
+        ##
+        # Returns a data-frame with the rows in all the data-frames together (if compatible).
+        
         def bind_all
             return nil if self.values.size == 0
             

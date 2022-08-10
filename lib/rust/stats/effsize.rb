@@ -2,7 +2,14 @@ require_relative '../core'
 
 Rust.prerequisite('effsize')
 
+##
+# Module containing utilities for computing effect size statistics.
+
 module Rust::EffectSize
+    
+    ##
+    # Effect size results.
+    
     class Result
         attr_accessor   :name
         attr_accessor   :estimate
@@ -15,7 +22,14 @@ module Rust::EffectSize
         end
     end
 
+    ##
+    # Cliff delta effect size statistics.
+    
     class CliffDelta
+        
+        ##
+        # Computes and returns the effect size for +d1+ and +d2+.
+        
         def self.compute(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }
@@ -42,7 +56,14 @@ module Rust::EffectSize
         end
     end
     
+    ##
+    # Cohen D effect size statistics.
+    
     class CohenD
+        
+        ##
+        # Computes and returns the effect size for +d1+ and +d2+.
+        
         def self.compute(d1, d2)
             raise TypeError, "Expecting Array of numerics" if !d1.is_a?(Array) || !d1.all? { |e| e.is_a?(Numeric) }
             raise TypeError, "Expecting Array of numerics" if !d2.is_a?(Array) || !d2.all? { |e| e.is_a?(Numeric) }

@@ -2,7 +2,16 @@ require_relative '../core'
 require 'csv'
 
 module Rust
+    
+    ##
+    # Class that handles CSVs (both loading and saving).
+    
     class CSV
+        
+        ##
+        # Reads a +pattern+ of CSVs (glob-style pattern) and returns a map containing as keys the filenames of the
+        # loaded CSVs and as values the corresponding data-frames. Options can be specified (see #read).
+        
         def self.read_all(pattern, **options)
             result = DataFrameHash.new
             Dir.glob(pattern).each do |filename|
@@ -10,6 +19,13 @@ module Rust
             end
             return result
         end
+        
+        ##
+        # Reads the CSV at +filename+. Options can be specified, such as:
+        # - headers => set to true if the first row contains the headers, false otherwise;
+        # - infer_numbers => if a column contains only numbers, the values are transformed into floats; true by default;
+        # - infer_integers => if infer_numbers is active, it distinguishes between integers and floats;
+        # The other options are the ones that can be used in the function R function "read.csv".
         
         def self.read(filename, **options)
             hash = {}
@@ -45,6 +61,11 @@ module Rust
             
             return result
         end
+        
+        ##
+        # Writes the +dataframe+ as a CSV at +filename+. Options can be specified, such as:
+        # - headers => set to true if the first row should contain the headers, false otherwise;
+        # The other options are the ones that can be used in the function R function "read.csv".
         
         def self.write(filename, dataframe, **options)
             raise TypeError, "Expected Rust::DataFrame" unless dataframe.is_a?(Rust::DataFrame)

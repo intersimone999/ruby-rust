@@ -2,6 +2,10 @@ require 'code-assertions'
 require 'stringio'
 require 'rinruby'
 
+##
+# Basic module for the Rust package. It includes a series of sub-modules that provide specific features, such as
+# statistical hypothesis tests, plots, and so on.
+
 module Rust
     CLIENT_MUTEX = Mutex.new
     R_MUTEX      = Mutex.new
@@ -15,13 +19,22 @@ module Rust
     @@debugging = $RUST_DEBUG || false
     @@in_client_mutex = false
     
+    ##
+    # Sets the debug mode. Any call to R will be written on the standard output.
+    
     def self.debug
         @@debugging = true
     end
     
+    ##
+    # Checks if the debug mode is active.
+    
     def self.debug?
         return @@debugging
     end
+    
+    ##
+    # Runs the given block with a mutex. It is mandatory to run any R command with this method. 
     
     def self.exclusive
         result = nil
@@ -33,6 +46,13 @@ module Rust
         return result
     end
     
+    ##
+    # Sets a variable in the R environment with a given value.
+    #
+    # Raises an error if the value can not be translated into an R object.
+    #
+    # Example: Rust['a'] = 0.
+    
     def self.[]=(variable, value)
         if value.is_a?(RustDatatype)
             value.load_in_r_as(variable.to_s)
@@ -41,8 +61,12 @@ module Rust
         else
             raise "Trying to assign #{variable} with #{value.class}; expected RustDatatype, String, Numeric, or Array"
         end
-        
     end
+    
+    ##
+    # Retrieves the value of a variable from the R environment.
+    #
+    # Example: Rust['a']
     
     def self.[](variable)
         return RustDatatype.pull_variable(variable)
@@ -107,12 +131,18 @@ module Rust
         end
     end
     
+    ##
+    # Checks if the given +name+ library can be used. Returns true if it is available, false otherwise.
+    
     def self.check_library(name)
         self.exclusive do
             result, _ = self._pull("require(\"#{name}\", character.only = TRUE)", true)
             return result
         end
     end
+    
+    ##
+    # Loads the given +name+ library.
     
     def self.load_library(name)
         self.exclusive do
@@ -122,6 +152,9 @@ module Rust
         return nil
     end
     
+    ##
+    # Installs the given +name+ library and its dependencies.
+    
     def self.install_library(name)
         self.exclusive do
             self._eval("install.packages(\"#{name}\", dependencies = TRUE)")
@@ -130,11 +163,37 @@ module Rust
         return nil
     end
     
+    ##
+    # Installs the +library+ library if it is not available and loads it.
+    
     def self.prerequisite(library)
         self.install_library(library) unless self.check_library(library)
         self.load_library(library)
     end
+    
+    ##
+    # Ask for help on a given +mod+.
+    
+    def self.help!(mod = nil)
+        unless mod
+            puts "You have the following modules:"
+            Rust.constants.map { |c| Rust.const_get(c) }.select { |c| c.class == Module }.each do |mod|
+                puts "\t- #{mod}"
+            end
+            puts "Run \"help! {module}\" for more detailed information about the module"
+        else
+            if mod.methods.include?(:help!)
+                mod.help!
+            else
+                puts "Sorry, no help available for #{mod}"
+            end
+        end
+    end
 end
+
+##
+# Module that contains methods that allow to call R functions faster. Such methods have names resembling the ones
+# available in R (e.g., cor, wilcox_test).
 
 module Rust::RBindings
     def data_frame(*args)
@@ -152,6 +211,11 @@ module Rust::TestCases
     end
 end
 
+##
+# Shortcut for including the RBinding module
+
 def bind_r!
     include Rust::RBindings
 end
+
+bind_r! if ENV['RUBY_RUST_BINDING'] == '1'

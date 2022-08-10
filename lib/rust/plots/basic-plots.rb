@@ -1,7 +1,16 @@
 require_relative 'core'
 
 module Rust::Plots
+    
+    ##
+    # Allows to create one or many scatter plots.
+    
     class ScatterPlot < BasePlot
+        
+        ##
+        # Creates a new scatter plot, given two arrays of values +x+ and +y+ for the respective axes (optional).
+        # +options+ can be specified and directly passed to the plot function in R.
+        
         def initialize(x = nil, y = nil, **options)
             super()
             @series = []
@@ -10,11 +19,18 @@ module Rust::Plots
             end
         end
         
+        ##
+        # Adds a new data series, given the values for the +x+ and +y+ axes.
+        # +options+ can be specified and directly passed to the plot function in R.
+        
         def series(x, y, **options)
             @series << [x, y, options]
             
             return self
         end
+        
+        ##
+        # Sets the thickness of the plot lines.
         
         def thickness(t)
             self['lwd'] = t
@@ -22,17 +38,26 @@ module Rust::Plots
             return self
         end
         
+        ##
+        # Changes the plot type to lines.
+        
         def lines()
             self['type'] = "l"
             
             return self
         end
         
+        ##
+        # Changes the plot type to points.
+        
         def points()
             self['type'] = "p"
             
             return self
         end
+        
+        ##
+        # Changes the plot type to lines and points.
         
         def lines_and_points()
             self['type'] = "b"
@@ -86,7 +111,14 @@ module Rust::Plots
         end
     end
     
+    ##
+    # Represents a bar plot in R.
+    
     class BarPlot < BasePlot
+        
+        ##
+        # Creates a new bar plot with the given +bars+ values.
+        
         def initialize(bars)
             super()
             @bars = bars
