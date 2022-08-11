@@ -25,3 +25,20 @@ module Rust::Plots
         end
     end
 end
+
+module Rust::RBindings
+    def adjbox(*args, **options)
+        result = Rust::Plots::AdjustedBoxplot.new
+        options.each do |k, v|
+            result[k] = v
+        end
+        
+        result._do_not_override_options!
+        
+        args.each do |s|
+            result.series(s)
+        end
+        
+        result.show
+    end
+end
