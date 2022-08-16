@@ -137,7 +137,7 @@ module Rust
         # Sets the +arguments+ (Arguments type) of the function.
         
         def arguments=(arguments)
-            raise TypeError, "Expected Arguments" unless options.is_a?(Arguments)
+            raise TypeError, "Expected Arguments" unless arguments.is_a?(Arguments)
             
             @arguments = arguments
         end
