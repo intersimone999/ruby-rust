@@ -3,8 +3,6 @@ require_relative '../../../rust'
 Rust.prerequisite("ggplot2")
 
 module Rust::Plots::GGPlot
-    @@theme = nil
-    
     def self.default_theme
         @@theme
     end
@@ -64,6 +62,7 @@ module Rust::Plots::GGPlot
             function.arguments << @aes if @aes
             
             result = function.to_R
+            result += " + " + @theme.to_R
             @layers.each do |layer|
                 result += " + " + layer.to_R
             end
@@ -94,14 +93,33 @@ module Rust::Plots::GGPlot
             return super()
         end
     end
+    
+    class Labels < Layer
+        def initialize(**options)
+            super()
+            @options = Rust::Options.from_hash(options)
+        end
+        
+        def to_R
+            function = Rust::Function.new("labs")
+            function.arguments = @arguments if @arguments
+            function.options = @options if @options
+            return function.to_R
+        end
+    end
 end
 
 module Rust::RBindings
     def ggplot(*arguments)
-        return Rust::Plots::GGPlot::Plot.new(*arguments)
+        Rust::Plots::GGPlot::Plot.new(*arguments)
     end
     
     def aes(**options)
-        return Rust::Plots::GGPlot::Aes.new(**options)
+        Rust::Plots::GGPlot::Aes.new(**options)
     end
+    
+    def labs(**options)
+        Rust::Plots::GGPlot::Labels.new(**options)
+    end
+    alias :labels :labs
 end

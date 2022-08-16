@@ -1,7 +1,35 @@
-require_relative 'core' 
+require 'json'
+require_relative 'core'
 
 module Rust::Plots::GGPlot
     class Theme < Layer
+        def self.from_h(options)            
+            starting = options.delete('_starting')
+            options = options.map do |key, value|
+                if value.is_a?(Hash)
+                    case value.delete('_type').split("::").last
+                    when 'TextElement'
+                        [key, TextElement.new(**value)]
+                    when 'RectElement'
+                        [key, RectElement.new(**value)]
+                    when 'TextElement'
+                        [key, TextElement.new(**value)]
+                    when 'LineElement'
+                        [key, LineElement.new(**value)]
+                    end
+                else
+                    [key, value]
+                end
+            end.to_h
+            
+            return Theme.new(starting, **options)
+        end
+        
+        def self.load(filename)
+            json = JSON.parse(File.read(filename))
+            return self.from_h(json.to_h)
+        end
+        
         def initialize(starting, **options)
             if starting
                 @starting = "theme_" + starting
@@ -24,6 +52,33 @@ module Rust::Plots::GGPlot
             
             return result
         end
+        
+        def to_h
+            options = @options.clone
+            
+            options['_starting'] = @starting.sub("theme_", "")
+            options = options.map do |key, value|
+                [key, value.is_a?(Theme::Element) ? value.to_h : value]
+            end.to_h
+            
+            return options
+        end
+        
+        def save(path, force = false)
+            if !force && FileTest.exist?(path)
+                raise "File already existing."
+            end
+            
+            File.open(path, "w") do |f|
+                f.write(
+                    JSON.pretty_generate(
+                        self.to_h
+                    )
+                )
+            end
+            
+            return true
+        end
     end
     
     class Theme::Element
@@ -44,6 +99,12 @@ module Rust::Plots::GGPlot
             function.options = Rust::Options.from_hash(options)
             
             return function.to_R
+        end
+        
+        def to_h
+            hash = @options.clone
+            hash['_type'] = self.class.name
+            return hash
         end
     end
     
@@ -71,16 +132,6 @@ module Rust::Plots::GGPlot
         end
     end
     
-    class QuickTheme < Theme
-        def initialize(*builders)
-            options = {}
-            builders.each do |builder|
-                options.merge!(builder.build)
-            end
-            super("bw", **options)
-        end
-    end
-    
     class ThemeComponentBuilder
         def initialize(namespace=nil)
             @namespace = namespace
@@ -100,7 +151,7 @@ module Rust::Plots::GGPlot
         end
         
         def line_el(value)
-            if value.is_a?(Theme::LineElement)
+            if value.is_a?(Theme::LineElement) || value.is_a?(Theme::BlankElement)
                 return value
             elsif value.is_a?(Hash)
                 return Theme::LineElement.new(**value)
@@ -110,7 +161,7 @@ module Rust::Plots::GGPlot
         end
         
         def rect_el(value)
-            if value.is_a?(Theme::RectElement)
+            if value.is_a?(Theme::RectElement) || value.is_a?(Theme::BlankElement)
                 return value
             elsif value.is_a?(Hash)
                 return Theme::RectElement.new(**value)
@@ -120,7 +171,7 @@ module Rust::Plots::GGPlot
         end
         
         def text_el(value)
-            if value.is_a?(Theme::TextElement)
+            if value.is_a?(Theme::TextElement) || value.is_a?(Theme::BlankElement)
                 return value
             elsif value.is_a?(Hash)
                 return Theme::TextElement.new(**value)
@@ -130,15 +181,92 @@ module Rust::Plots::GGPlot
         end
         
         def unit_el(value)
-            ThemeUtils.to_units(value)
+            numeric = nil
+            unit = nil
+            
+            if input.is_a?(String)
+                numeric, unit = *input.scan(/^([0-9.]+)([A-Za-z]+)/).flatten
+                
+                raise "Unclear numeric part in #{input}" unless numeric
+                raise "Unclear unit part in #{input}"    unless unit
+            elsif input.is_a?(Numeric)
+                numeric = input
+                unit = "npc"
+            end
+            
+            raise "Unable to handle #{input}" unless numeric && unit
+            
+            function = Rust::Function.new("units")
+            function.arguments = Rust::Arguments.new([numeric, unit])
+            
+            return function.to_R
         end
         
         def alignment_el(value)
-            ThemeUtils.to_alignment(value)
+            if value.is_a?(String) || value.is_a?(Symbol)
+                case value.to_s.downcase
+                when 'left'
+                    value = 1
+                when 'right'
+                    value = 0
+                else
+                    value = 1
+                end
+            end
+            
+            return value
+        end
+        
+        def numeric_el(value)
+            raise "Expected number" unless value.is_a?(Numeric)
+            return value
         end
         
         def build
             @options
+        end
+    end
+    
+    class ThemeBuilder < ThemeComponentBuilder
+        def initialize(starting = 'bw')
+            super("plot")
+            @starting = starting
+        end
+        
+        def background(value)
+            self.option('background', rect_el(value))
+        end
+        
+        def title(value)
+            self.option('title', text_el(value))
+        end
+        
+        def axis
+            builder = ThemeAxisBuilder.new
+            yield builder
+            
+            @options.merge!(builder.build)
+            return self
+        end
+        
+        def legend
+            builder = ThemeLegendBuilder.new
+            yield builder
+            
+            @options.merge!(builder.build)
+            return self
+        end
+        
+        def panel
+            builder = ThemePanelBuilder.new
+            yield builder
+            
+            @options.merge!(builder.build)
+            return self
+        end
+        
+        def build
+            return Theme.new(@starting, **@options)
         end
     end
     
@@ -187,6 +315,14 @@ module Rust::Plots::GGPlot
     class ThemeLegendBuilder < ThemeComponentBuilder
         def initialize
             super("legend")
+        end
+        
+        def position(value)
+            self.option('position', value)
+        end
+        
+        def justification(value)
+            self.option('justification', value)
         end
         
         def background(value)
@@ -268,7 +404,7 @@ module Rust::Plots::GGPlot
         end
         
         def aspect_ratio(value)
-            self.option('aspect.ratio', value)
+            self.option('aspect.ratio', numeric_el(value))
         end
         
         def margin(value)
@@ -284,42 +420,16 @@ module Rust::Plots::GGPlot
         end
     end
     
-    class ThemeUtils
-        def self.to_units(input)
-            numeric = nil
-            unit = nil
-            
-            if input.is_a?(String)
-                numeric, unit = *input.scan(/^([0-9.]+)([A-Za-z]+)/).flatten
-                
-                raise "Unclear numeric part in #{input}" unless numeric
-                raise "Unclear unit part in #{input}"    unless unit
-            elsif input.is_a?(Numeric)
-                numeric = input
-                unit = "npc"
-            end
-            
-            raise "Unable to handle #{input}" unless numeric && unit
-            
-            function = Rust::Function.new("units")
-            function.arguments = Rust::Arguments.new([numeric, unit])
-            
-            return function.to_R
-        end
-        
-        def self.to_alignment(value)
-            if value.is_a?(String) || value.is_a?(Symbol)
-                case value.to_s.downcase
-                when 'left'
-                    value = 1
-                when 'right'
-                    value = 0
-                else
-                    value = 1
-                end
-            end
-            
-            return value
-        end
-    end
+    self.default_theme = ThemeBuilder.new\
+            .title(face: 'bold', size: 12)\
+            .legend do |legend|
+                legend.background(fill: 'white', size: 4, colour: 'white')
+                legend.position([0, 1])
+                legend.justification([0, 1])
+            end.axis do |axis| 
+                axis.ticks(colour: 'grey70', size: 0.2)
+            end.panel do |panel|
+                panel.grid_major(colour: 'grey70', size: 0.2)
+                panel.grid_minor(Theme::BlankElement.new)
+            end.build
 end
