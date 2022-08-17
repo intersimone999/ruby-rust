@@ -53,7 +53,7 @@ module Rust::Plots::GGPlot
         def to_h
             options = @options.clone
             
-            options['_starting'] = @starting.sub("theme_", "")
+            options['_starting'] = @starting.sub("theme_", "") if @starting
             options = options.map do |key, value|
                 [key, value.is_a?(Theme::Element) ? value.to_h : value]
             end.to_h
@@ -225,7 +225,7 @@ module Rust::Plots::GGPlot
     end
     
     class ThemeBuilder < ThemeComponentBuilder
-        def initialize(starting = 'bw')
+        def initialize(starting = nil)
             super("plot")
             @starting = starting
         end
