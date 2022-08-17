@@ -1,3 +1,5 @@
 require_relative 'ggplot2/core'
 require_relative 'ggplot2/geoms'
 require_relative 'ggplot2/themes'
+require_relative 'ggplot2/plot_builder'
+require_relative 'ggplot2/helper'
