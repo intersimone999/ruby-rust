@@ -31,23 +31,20 @@ module Rust::Plots::GGPlot
         end
         
         def initialize(starting, **options)
+            super("theme", **options)
             if starting
                 @starting = "theme_" + starting
             end
-            @options = options
-        end
-        
-        def option(key, value)
-            @options[key] = value
         end
         
         def to_R
-            options = @options.map { |k, v| [k.to_s.gsub("_", "."), v] }.to_h
+            result = super do |options, arguments| 
+                [
+                    options.map { |k, v| [k.to_s.gsub("_", "."), v] }.to_h,
+                    arguments
+                ] 
+            end
             
-            function = Rust::Function.new("theme")
-            function.options = Rust::Options.from_hash(options)
-            
-            result = function.to_R
             result = Rust::Function.new(@starting).to_R + " + " +  result if @starting
             
             return result
@@ -420,16 +417,19 @@ module Rust::Plots::GGPlot
         end
     end
     
-    self.default_theme = ThemeBuilder.new\
-            .title(face: 'bold', size: 12)\
-            .legend do |legend|
+    self.default_theme = ThemeBuilder.new.
+            title(face: 'bold', size: 12).
+            legend do |legend|
                 legend.background(fill: 'white', size: 4, colour: 'white')
                 legend.position([0, 1])
                 legend.justification([0, 1])
-            end.axis do |axis| 
+            end.
+            axis do |axis| 
                 axis.ticks(colour: 'grey70', size: 0.2)
-            end.panel do |panel|
+            end.
+            panel do |panel|
                 panel.grid_major(colour: 'grey70', size: 0.2)
                 panel.grid_minor(Theme::BlankElement.new)
-            end.build
+            end.
+            build
 end
