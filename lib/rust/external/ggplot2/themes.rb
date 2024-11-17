@@ -78,6 +78,9 @@ module Rust::Plots::GGPlot
         end
     end
     
+    class ExistingTheme < Layer
+    end
+    
     class Theme::Element
         attr_reader :options
         
@@ -152,6 +155,8 @@ module Rust::Plots::GGPlot
                 return value
             elsif value.is_a?(Hash)
                 return Theme::LineElement.new(**value)
+            elsif !value
+                return Theme::BlankElement.new
             else
                 raise "Expected line or hash"
             end
@@ -162,6 +167,8 @@ module Rust::Plots::GGPlot
                 return value
             elsif value.is_a?(Hash)
                 return Theme::RectElement.new(**value)
+            elsif !value
+                return Theme::BlankElement.new
             else
                 raise "Expected rect or hash"
             end
@@ -172,6 +179,8 @@ module Rust::Plots::GGPlot
                 return value
             elsif value.is_a?(Hash)
                 return Theme::TextElement.new(**value)
+            elsif !value
+                return Theme::BlankElement.new
             else
                 raise "Expected text or hash"
             end
@@ -417,7 +426,21 @@ module Rust::Plots::GGPlot
         end
     end
     
-    self.default_theme = ThemeBuilder.new.
+    class ThemeCollection
+        def self.ggtech(name = "google")
+            Rust.prerequisite("ricardo-bion/ggtech", true)
+            
+            return ExistingTheme.new("theme_tech", theme: name)
+        end
+        
+        def self.ggdark(style = "classic")
+            Rust.prerequisite("ggdark")
+            
+            return ExistingTheme.new("dark_theme_#{style}")
+        end
+    end
+    
+    self.default_theme = ThemeBuilder.new("bw").
             title(face: 'bold', size: 12).
             legend do |legend|
                 legend.background(fill: 'white', size: 4, colour: 'white')

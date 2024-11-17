@@ -81,6 +81,14 @@ module Rust
             @data.size
         end
         
+        def rownames
+            @row_names
+        end
+        
+        def colnames
+            @column_names
+        end
+        
         ##
         # Returns the number of columns.
         

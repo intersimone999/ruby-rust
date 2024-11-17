@@ -29,6 +29,8 @@ module Rust
             @data.each do |key, value|
                 Rust["#{variable_name}[[#{key + 1}]]"] = value
             end
+            
+            Rust._eval("names(#{variable_name}) <- #{self.names.to_R}")
         end
         
         ##

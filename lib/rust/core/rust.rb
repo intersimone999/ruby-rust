@@ -102,7 +102,10 @@ module Rust
     end
     
     def self._rexec(r_command, return_warnings = false)
-        puts "Calling _rexec with command: #{r_command}" if @@debugging
+        if @@debugging
+            puts "Calling _rexec with command: #{r_command}"
+            puts "\t" + Kernel.caller.select { |v| !v.include?("irb") }.last(3).map { |v| v.sub(/^.*gems\//, "")}.join("\n\t")
+        end
         R_MUTEX.synchronize do
             assert("This command must be executed in an exclusive block") { @@in_client_mutex }
             
@@ -154,10 +157,17 @@ module Rust
     
     ##
     # Installs the given +name+ library and its dependencies.
+    # +github+ indicates whether the package is in GitHub.
     
-    def self.install_library(name)
+    def self.install_library(name, github = false)
+        self.prerequisite("remotes") if github
+
         self.exclusive do
-            self._eval("install.packages(\"#{name}\", dependencies = TRUE)")
+            if github
+                self._eval("remotes::install_github(\"#{name}\", dependencies=TRUE)")
+            else
+                self._eval("install.packages(\"#{name}\", dependencies = TRUE)")
+            end
         end
         
         return nil
@@ -165,9 +175,15 @@ module Rust
     
     ##
     # Installs the +library+ library if it is not available and loads it.
+    # +github+ indicates whether the package appears in GitHub.
     
-    def self.prerequisite(library)
-        self.install_library(library) unless self.check_library(library)
+    def self.prerequisite(library, github = false)
+        full_library = library
+        library = library.split("/").last if github
+        
+        unless self.check_library(library)
+            self.install_library(full_library, github)
+        end
         self.load_library(library)
     end
     
@@ -216,6 +232,13 @@ end
 
 def bind_r!
     include Rust::RBindings
+end
+
+##
+# Shortcut for requiring rust external libraries
+
+def require_rust(name)
+    require "rust/external/#{name}"
 end
 
 bind_r! if ENV['RUBY_RUST_BINDING'] == '1'

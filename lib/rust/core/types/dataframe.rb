@@ -1,4 +1,5 @@
 require_relative 'datatype'
+require 'tempfile'
 
 module Rust
     
@@ -355,8 +356,25 @@ module Rust
         end
         
         def load_in_r_as(variable_name)
-            command = []
+            tempfile = Tempfile.new('rust.dfport')
+            tempfile.close
             
+            Rust::CSV.write(tempfile.path, self)
+            Rust._eval("#{variable_name} <- read.csv(\"#{tempfile.path}\", header=T)")
+            
+            if Rust.debug?
+                FileUtils.cp(tempfile.path, tempfile.path + ".debug.csv")
+                puts "Debug CSV port file available at: #{tempfile.path + ".debug.csv"}"
+            end
+            
+            tempfile.unlink
+            
+            return true
+        end
+        
+        def directly_load_in_r_as(variable_name)
+            command = []
+                        
             command << "#{variable_name} <- data.frame()"
             row_index = 1
             self.each do |row|
@@ -374,6 +392,10 @@ module Rust
             end
             
             Rust._eval_big(command)
+            
+            tempfile.unlink
+            
+            return true
         end
         
         def inspect
@@ -409,15 +431,38 @@ module Rust
         end
         
         ##
+        # Merges this data-frame with +other+ in terms of the +by+ column(s) (Array or String). Keeps all the rows in this data frame.
+        # +first_alias+ and +second_alias+ allow to specify the prefix that should be used for the columns not in +by+
+        # for this and the +other+ data-frame, respectively.
+        
+        def left_merge(other, by, first_alias, second_alias, **options)
+            options[:keep_right] = true
+            options[:keep_left]  = false
+            return other.merge(self, by, first_alias, second_alias, **options)
+        end
+        
+        ##
+        # Merges this data-frame with +other+ in terms of the +by+ column(s) (Array or String). Keeps all the rows in the other data frame.
+        # +first_alias+ and +second_alias+ allow to specify the prefix that should be used for the columns not in +by+
+        # for this and the +other+ data-frame, respectively.
+        
+        def right_merge(other, by, first_alias, second_alias, **options)
+            options[:keep_right] = true
+            options[:keep_left]  = false
+            return self.merge(other, by, first_alias, second_alias, **options)
+        end
+        
+        ##
         # Merges this data-frame with +other+ in terms of the +by+ column(s) (Array or String).
         # +first_alias+ and +second_alias+ allow to specify the prefix that should be used for the columns not in +by+
         # for this and the +other+ data-frame, respectively.
         
-        def merge(other, by, first_alias = "x", second_alias = "y")
+        def merge(other, by, first_alias = "x", second_alias = "y", **options)
             raise TypeError, "Expected Rust::DataFrame" unless other.is_a?(DataFrame)
             raise TypeError, "Expected list of strings" if !by.is_a?(Array) || !by.all? { |e| e.is_a?(String) }
             raise "This dataset should have all the columns in #{by}" unless (by & self.column_names).size == by.size
             raise "The passed dataset should have all the columns in #{by}" unless (by & other.column_names).size == by.size
+            raise "Either keep_right or keep_left should be provided as options, not both" if options[:keep_right] && options[:keep_left]
             
             if first_alias == second_alias
                 if first_alias == ""
@@ -473,6 +518,28 @@ module Rust
                     end
                     
                     result << to_add
+                    
+                elsif options[:keep_right]
+                    to_add = {}
+                    
+                    by.each do |colname|
+                        to_add[colname] = other_row[colname]
+                    end
+                    
+                    merged_column_self.each do |colname|
+                        to_add["#{first_alias}#{colname}"] = nil
+                    end
+                    
+                    merged_column_other.each do |colname|
+                        to_add["#{second_alias}#{colname}"] = other_row[colname]
+                    end
+                    
+                    result << to_add
+                    
+                elsif options[:keep_left]
+                    options[:keep_left]  = false
+                    options[:keep_right] = true
+                    return other.merge(self, by, first_alias, second_alias, **options)
                 end
             end
             

@@ -125,6 +125,10 @@ module Rust
             @level
         end
         
+        def to_str
+           @level.to_s
+        end
+        
         def to_R
             self.to_i
         end

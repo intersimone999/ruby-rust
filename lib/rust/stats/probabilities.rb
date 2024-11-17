@@ -86,6 +86,20 @@ module Rust
         end
         
         ##
+        # Returns the variance for this slice.
+        
+        def variance
+            @values.map { |k, v| k**2 * v }.sum - (self.expected ** 2)
+        end
+        
+        ##
+        # Returns the standard deviation for this slice.
+        
+        def sd
+            Math.sqrt(self.variance)
+        end
+        
+        ##
         # Returns a slice with the values that are greater than +n+.
         
         def >(n)
@@ -124,7 +138,7 @@ module Rust
         # Returns a slice with the values between +a+ and +b+.
         
         def between(a, b)
-            self.so_that { |k| k.between(a, b) }
+            self.so_that { |k| k.between?(a, b) }
         end
         
         ##
@@ -132,6 +146,13 @@ module Rust
         
         def so_that
             RandomVariableSlice.new(@values.select { |k, v| yield(k) })
+        end
+        
+        ##
+        # Creates a bar plot of the distribution
+        
+        def plot
+            Rust::Plots::BarPlot.new(@values.sort_by { |k, v| k }.to_h)
         end
     end
     

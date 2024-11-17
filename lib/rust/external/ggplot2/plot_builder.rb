@@ -64,14 +64,6 @@ module Rust::Plots::GGPlot
             return self
         end
         
-        def labeled(value)
-            raise "No context for assigning a label" unless @current_context
-            @label_options[@current_context] = value
-            @current_context = nil
-            
-            return self
-        end
-        
         def with_x_label(value)
             @label_options[:x] = value
             
@@ -86,6 +78,76 @@ module Rust::Plots::GGPlot
         
         def with_color_label(value)
             @label_options[:color] = value
+            
+            return self
+        end
+        
+        def scale_x_continuous(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:x, :continuous, **options)
+            
+            return self
+        end
+        
+        def scale_y_continuous(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:y, :continuous, **options)
+            
+            return self
+        end
+        
+        def scale_x_discrete(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:x, :discrete, **options)
+            
+            return self
+        end
+        
+        def scale_y_discrete(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:y, :discrete, **options)
+            
+            return self
+        end
+        
+        def scale_x_log10(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:x, :log10, **options)
+            
+            return self
+        end
+        
+        def scale_y_log10(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:y, :log10, **options)
+            
+            return self
+        end
+        
+        def scale_x_reverse(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:x, :reverse, **options)
+            
+            return self
+        end
+        
+        def scale_y_reverse(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:y, :reverse, **options)
+            
+            return self
+        end
+        
+        def scale_x_sqrt(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:x, :sqrt, **options)
+            
+            return self
+        end
+        
+        def scale_y_sqrt(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(:y, :sqrt, **options)
             
             return self
         end
@@ -156,6 +218,48 @@ module Rust::Plots::GGPlot
             @layers << theme
             
             @current_context = nil
+            
+            return self
+        end
+        
+        def labeled(value)
+            raise "No context for assigning a label" unless @current_context
+            @label_options[@current_context] = value
+            
+            return self
+        end
+        
+        def scale_continuous(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(@current_context, :continuous, **options)
+            
+            return self
+        end
+        
+        def scale_discrete(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(@current_context, :discrete, **options)
+            
+            return self
+        end
+        
+        def scale_log10(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(@current_context, :log10, **options)
+            
+            return self
+        end
+        
+        def scale_reverse(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(@current_context, :reverse, **options)
+            
+            return self
+        end
+        
+        def scale_sqrt(**options)
+            raise "No context for assigning a label" unless @current_context
+            @layers << AxisScaler.new(@current_context, :sqrt, **options)
             
             return self
         end

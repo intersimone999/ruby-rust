@@ -172,6 +172,22 @@ module Rust
     end
     
     ##
+    # Represents a verbatim R expression
+    
+    class Verbatim
+        ## 
+        #Creates a verbatim R expression
+        
+        def initialize(expression)
+            @expression = expression
+        end
+        
+        def to_R
+            @expression
+        end
+    end
+    
+    ##
     # Represents the arguments of a function in R. Works as an Array of objects.
     
     class Arguments < Array
@@ -195,5 +211,21 @@ module Rust
             end
             return options
         end
+    end
+    
+    def self.verbatim(expression)
+        Verbatim.new(expression)
+    end
+    
+    def self.variable(variable)
+        Variable.new(variable)
+    end
+    
+    def self.function(name)
+        Function.new(name)
+    end
+    
+    def self.formula(left_part, right_part)
+        Formula.new(left_part, right_part)
     end
 end 

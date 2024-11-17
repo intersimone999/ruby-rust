@@ -90,9 +90,9 @@ module Rust
             dataframe.column_names.each do |column_name|
                 values = dataframe.column(column_name)
                 
-                if values.all? { |s| !!Integer(s) rescue false }
+                if values.all? { |s| s == nil || !!Integer(s) rescue false }
                     integer_columns << column_name
-                elsif values.all? { |s| !!Float(s) rescue false }
+                elsif values.all? { |s| s == nil || !!Float(s) rescue false }
                     float_columns << column_name
                 end
             end
@@ -103,11 +103,11 @@ module Rust
             end
             
             integer_columns.each do |numeric_column|
-                dataframe.transform_column!(numeric_column) { |v| v.to_i }
+                dataframe.transform_column!(numeric_column) { |v| v != nil ? v.to_i : v }
             end
             
             float_columns.each do |numeric_column|
-                dataframe.transform_column!(numeric_column) { |v| v.to_f }
+                dataframe.transform_column!(numeric_column) { |v| v != nil ? v.to_f : v }
             end
             
             return dataframe

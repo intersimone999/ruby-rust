@@ -36,7 +36,7 @@ module Rust
             if candidates.size > 0
                 type = candidates.max_by { |c| c.pull_priority }
                 
-                puts "Using #{type} to pull #{variable}" if Rust.debug?
+                puts "Using #{type} to pull #{variable} (candidates: #{candidates.map { |c| c.to_s + "=>" + c.pull_priority.to_s}.join(", ")})" if Rust.debug?
                 return type.pull_variable(variable, r_type, r_class)
             else
                 if Rust._pull("length(#{variable})") == 0
@@ -80,7 +80,7 @@ module Rust
         def r_mirror
             varname = self.mirrored_R_variable_name
                         
-            if !Rust._pull("exists(\"#{varname}\")") || Rust._pull("#{varname}.hash") != self.r_hash
+            if !Rust._pull("exists(\"#{varname}\")") || Rust["#{varname}.hash"] != self.r_hash
                 puts "Loading #{varname}" if Rust.debug?
                 Rust[varname] = self
                 Rust["#{varname}.hash"] = self.r_hash
