@@ -607,6 +607,8 @@ module Rust
         # Sorts the rows of this data-frame by the values of the +by+ column.
         
         def sort_by!(by)
+            raise TypeError, "String expected" unless by.is_a?(String)
+            raise "'#{by}' is not a valid column name (#{self.colnames.to_s})" unless self.colnames.include?(by)
             copy = @data[by].clone
             copy.sort!
             
