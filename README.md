@@ -10,6 +10,16 @@ To install the latest version of Rust, simply run the following command
 gem install rust
 ```
 
+NOTE: You also need to install the latest version of rinruby to make everything work. The one currently available in the central repository might not work (Nov 2024). 
+To fix that, you should manually build and install rinruby using the following command:
+
+```
+git clone https://github.com/clbustos/rinruby
+cd rinruby
+gem build rinruby.gemspec
+gem install rinruby-2.1.0.gem
+```
+
 ## Structure
 Everything in Rust is defined in the `Rust` module and organized in submodules, one for each core feature. The modules currently available are:
 
