@@ -7,10 +7,11 @@ RSpec::Core::RakeTask.new(:spec) do |t|
     t.pattern = 'spec/**/*_spec.rb'
 end
 
-task :fuzz do
+task :fuzz, [:quiet] do |_, args|
+    extra = args[:quiet] == 'quiet' ? ['--quiet'] : []
     Dir.glob('fuzz/**/*_fuzz.rb').each do |script|
         puts "Running #{script}..."
-        system(RbConfig.ruby, script) || abort("Fuzz test failed: #{script}")
+        system(RbConfig.ruby, script, *extra) || abort("Fuzz test failed: #{script}")
     end
 end
 
