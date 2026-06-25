@@ -7,6 +7,13 @@ RSpec::Core::RakeTask.new(:spec) do |t|
     t.pattern = 'spec/**/*_spec.rb'
 end
 
+task :fuzz do
+    Dir.glob('fuzz/**/*_fuzz.rb').each do |script|
+        puts "Running #{script}..."
+        system(RbConfig.ruby, script) || abort("Fuzz test failed: #{script}")
+    end
+end
+
 task default: :spec
 
 task :release, [:version] do |_, args|
