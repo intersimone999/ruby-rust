@@ -166,7 +166,9 @@ module Rust
             if github
                 self._eval("remotes::install_github(\"#{name}\", dependencies=TRUE)")
             else
-                self._eval("install.packages(\"#{name}\", dependencies = TRUE)")
+                self._eval("dir.create(Sys.getenv('R_LIBS_USER'), recursive=TRUE, showWarnings=FALSE)")
+                self._eval(".libPaths(c(Sys.getenv('R_LIBS_USER'), .libPaths()))")
+                self._eval("install.packages(\"#{name}\", dependencies=TRUE, repos='https://cloud.r-project.org', lib=Sys.getenv('R_LIBS_USER'))")
             end
         end
         

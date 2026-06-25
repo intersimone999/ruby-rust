@@ -11,6 +11,5 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/intersimone999/ruby-rust'
   s.license     = "GPL-3.0-only"
   
-  s.add_runtime_dependency "rinruby"        , "~> 2.1.0", ">= 2.1.0"
   s.add_runtime_dependency "code-assertions", "~> 1.1.2", ">= 1.1.2"
 end
