@@ -12,4 +12,6 @@ Gem::Specification.new do |s|
   s.license     = "GPL-3.0-only"
   
   s.add_runtime_dependency "code-assertions", "~> 1.1.2", ">= 1.1.2"
+
+  s.add_development_dependency "rspec", "~> 3.0"
 end

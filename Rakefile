@@ -1,6 +1,13 @@
 require 'rake'
+require 'rspec/core/rake_task'
 
 GEMSPEC = "rust.gemspec"
+
+RSpec::Core::RakeTask.new(:spec) do |t|
+    t.pattern = 'spec/**/*_spec.rb'
+end
+
+task default: :spec
 
 task :release, [:version] do |_, args|
   version = args[:version]
