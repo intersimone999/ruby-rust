@@ -31,7 +31,22 @@ module FuzzHelper
             (a - b).abs <= tol
         end
 
+        def quiet?
+            ARGV.include?('--quiet')
+        end
+
+        def get_fuzz_iterations(iterations = 500)
+            idx = ARGV.index('--iter')
+            idx ? ARGV[idx + 1].to_i : iterations
+        end
+
+        def get_fuzz_seed(seed = Random.new_seed)
+            idx = ARGV.index('--seed')
+            idx ? ARGV[idx + 1].to_i : seed
+        end
+
         def draw_progress(done, total)
+            return if quiet?
             filled  = (BAR_WIDTH * done / total.to_f).round
             bar     = "\e[32m#{'█' * filled}\e[0m#{'░' * (BAR_WIDTH - filled)}"
             pct     = (100.0 * done / total).round(1)
@@ -44,14 +59,14 @@ module FuzzHelper
         def run_fuzz(iterations, seed, &block)
             srand(seed)
             puts "\e[1mFuzz seed:\e[0m #{seed}   \e[1mIterations:\e[0m #{iterations}"
-            puts
+            puts unless quiet?
 
             iterations.times do |i|
                 block.call(i)
                 draw_progress(i + 1, iterations)
             end
 
-            puts "\n"
+            puts unless quiet?
             if @failures.empty?
                 puts "\e[32m✔ All #{@total} checks passed.\e[0m"
                 true

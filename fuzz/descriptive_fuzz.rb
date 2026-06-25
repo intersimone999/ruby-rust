@@ -8,8 +8,8 @@ require_relative 'fuzz_helper'
 module DescriptiveFuzz
     include FuzzHelper
 
-    ITERATIONS = (ENV['FUZZ_ITER'] || 500).to_i
-    SEED       = (ENV['FUZZ_SEED'] || Random.new_seed).to_i
+    ITERATIONS = get_fuzz_iterations()
+    SEED       = get_fuzz_seed()
 
     def self.run
         passed = run_fuzz(ITERATIONS, SEED) do |i|
