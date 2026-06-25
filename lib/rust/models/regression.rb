@@ -181,12 +181,22 @@ module Rust::Models::Regression
             
             return self, excluded
         end
-        
+
+        ##
+        # Predicts the dependent variable from a new observation of the independent ones.
+        # Note: Not fully tested
+
+        def predict(line)
+            Rust.exclusive do
+                Rust['tmp.model.newline'] = line
+                return Rust["predict(#{self.r_mirror}, tmp.model.newline)"]
+            end
+        end
         
         def method_missing(name, *args)
             return model|name.to_s
         end
-        
+
         ##
         # Returns a summary for the model using the summary function in R.
         
@@ -240,6 +250,57 @@ module Rust::Models::Regression
                 data, 
                 **options
             )
+        end
+
+        ##
+        # Returns the model as a proc that can be used to predict values
+
+        def to_proc
+            proc do |unnormalized_data|
+                data = Rust::DataFrame.new(["__TOREM__"])
+                unnormalized_data.rows.times do
+                    data << [0]
+                end
+                unnormalized_data.colnames.each do |col|
+                    if (unnormalized_data|col)[0].is_a?(Numeric)
+                        newcol = Rust::DataFrame.new([col])
+                        (unnormalized_data|col).each do |v|
+                            newcol << [v]
+                        end
+                        data.cbind!(newcol)
+                    else
+                        (unnormalized_data|col).uniq.each do |val|
+                            newcol = Rust::DataFrame.new([col + val])
+                            (unnormalized_data|col).each do |v|
+                                if v == val
+                                    newcol << [1]
+                                else
+                                    newcol << [0]
+                                end
+                            end
+                            data.cbind!(newcol)
+                        end
+                    end
+                end
+                data.delete_column("__TOREM__")
+                value = 0
+                @variables.each do |var|
+                    p var
+                    if var.name == "(Intercept)"
+                        value += var.coefficient
+                    else
+                        if data.colnames.include?(var.name)
+                            value += (data|var.name)[0] * var.coefficient
+                        end
+                    end
+                end
+
+                value
+            end
+        end
+
+        def predict(line)
+            self.to_proc.call(line)
         end
     end
     

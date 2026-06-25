@@ -109,11 +109,21 @@ module Rust
     
     class Null < RustDatatype
         def self.can_pull?(type, klass)
-            return type == "NULL" && klass == "NULL"
+            return (type == "NULL" && klass == "NULL")
         end
         
         def self.pull_variable(variable, type, klass)
             return nil
+        end
+    end
+
+    class Omit < RustDatatype
+        def self.can_pull?(type, klass)
+            return (klass == "omit")
+        end
+
+        def self.pull_variable(variable, type, klass)
+            return Rust["as.#{type}(#{variable})"]
         end
     end
 end
